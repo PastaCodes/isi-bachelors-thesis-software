@@ -103,9 +103,9 @@ def phi_prime(phase: float, slope: float) -> float:
 
 # https://www.minorplanetcenter.net/iau/info/BandConversion.txt
 VISUAL_CORRECTION: Final[dict[str, float]] = \
-    { ' ': -0.8, 'U': -1.3, 'B': -0.8, 'g': -0.35, 'V': 0, 'r': 0.14, 'R': 0.4, 'C': 0.4, 'W': 0.4, 'i': 0.32,
-      'z': 0.26, 'I': 0.8, 'J': 1.2, 'w': -0.13, 'y': 0.32, 'L': 0.2, 'H': 1.4, 'K': 1.7, 'Y': 0.7, 'G': 0.28, 'v': 0,
-      'c': -0.05, 'o': 0.33, 'u': 2.5 }
+    {' ': -0.8, 'U': -1.3, 'B': -0.8, 'g': -0.35, 'V': 0, 'r': 0.14, 'R': 0.4, 'C': 0.4, 'W': 0.4, 'i': 0.32,
+     'z': 0.26, 'I': 0.8, 'J': 1.2, 'w': -0.13, 'y': 0.32, 'L': 0.2, 'H': 1.4, 'K': 1.7, 'Y': 0.7, 'G': 0.28, 'v': 0,
+     'c': -0.05, 'o': 0.33, 'u': 2.5}
 
 
 def distance_from_magnitude(observed_magnitude: float, band: str, elongation: float, earth_sun_distance: float,
@@ -153,7 +153,7 @@ def main():
     data = []
     for o in obs:
         try:
-            pos = output_transform(o, 23.92, 0.15)
+            pos = output_transform(o, 20.9, 0.04)
             # data.append((o.datetime.to_decimal_year(), pos))
             data.append(pos)
         except:
@@ -163,8 +163,11 @@ def main():
     ax = fig.add_subplot(111, projection='3d')
     d = np.array(data)
     ax.scatter(d.T[0], d.T[1], d.T[2], c='r', depthshade=False)
-    ax.set_xlim(-1, 1); ax.set_ylim(-1, 1); ax.set_zlim(-1, 1)
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
     plt.show()
+
 
 if __name__ == '__main__':
     main()
