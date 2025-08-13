@@ -1,47 +1,43 @@
-import calendar
-import datetime as dt
-import math
-from typing import Final
-
-import numpy as np
-import scipy
-from astropy.units import Quantity
+import numpy.linalg as npl
 from astropy import units as u
-from astropy.coordinates import CartesianRepresentation
-from fortranformat import FortranRecordReader
+from astropy.coordinates import GCRS, CartesianRepresentation, get_body_barycentric, get_body
+from astropy.time import Time
+
+from orbit import *
+from misc import DecimalDayDatetime
 
 
-# Rough estimate of the standard deviation based on the number of provided decimals
-def sd(decimals: str) -> float:
-    precision = len(decimals.replace(' ', ''))
-    return 0.5 * 10 ** -precision
+class MinorPlanet:
+    def __init__(self, name:str, observations_file: str, absolute_magnitude: float, slope: float,
+                 # Begin with the dubious parameters
+                 semi_major_axis: float,
+                 eccentricity: float,
+                 inclination: float) -> None:
+        self.name = name
+        self.observations_file = observations_file
+        self.absolute_magnitude = absolute_magnitude
+        self.slope = slope
+        self.semi_major_axis = semi_major_axis
+        self.eccentricity = eccentricity
+        self.inclination = inclination
 
+        self.cot_i = 1 / math.tan(inclination)
+        self.mean_motion = get_mean_motion(semi_major_axis)
+        self.period = 2 * math.pi / self.mean_motion
+        self.beta = eccentricity / (1 + math.sqrt(1 - eccentricity ** 2))
 
-class DecimalDayDatetime:
-    def __init__(self, year: int, month: int, day_dec: float) -> None:
-        self.year = year
-        self.month = month
-        self.day_dec = day_dec
-
-    def to_datetime(self) -> dt.datetime:
-        day_frac, day = math.modf(self.day_dec)
-        return dt.datetime(self.year, self.month, int(day)) + dt.timedelta(days=day_frac)
-
-    def to_decimal_year(self) -> float:
-        day_frac, day = math.modf(self.day_dec)
-        year_day_dec = dt.datetime(self.year, self.month, int(day)).timetuple().tm_yday + day_frac
-        return self.year + year_day_dec / (366 if calendar.isleap(self.year) else 365)
+    def load_observations(self) -> list['MinorPlanetObservation']:
+        from parse import parse_obs_file
+        return parse_obs_file(self, accept_methods=['B', 'C'])
 
 
 # As described by https://www.minorplanetcenter.net/iau/info/OpticalObs.html
 class MinorPlanetObservation:
-    FORMAT: Final[str] = \
-        '(A5, A7, A1, A1, A1, I4, 1X, I2, 1X, F9.6, I2, 1X, I2, 1X, F6.3, I3, 1X, I2, 1X, F5.2, 9X, F5.2, A1, 6X, A3)'
-    reader = FortranRecordReader(FORMAT)
-
-    def __init__(self, datetime: DecimalDayDatetime, year_sd: float, right_ascension: float, right_ascension_sd: float,
+    def __init__(self, obj: MinorPlanet, datetime: DecimalDayDatetime, year_sd: float,
+                 right_ascension: float, right_ascension_sd: float,
                  declination: float, declination_sd: float, magnitude: float, magnitude_sd: float, band: str,
                  is_discovery: bool) -> None:
+        self.obj = obj
         self.datetime = datetime
         self.year_sd = year_sd
         self.right_ascension = right_ascension
@@ -53,121 +49,132 @@ class MinorPlanetObservation:
         self.band = band
         self.is_discovery = is_discovery
 
+        self.obstime = Time(datetime.to_datetime(), scale='utc')
+        from photometry import visual_magnitude_from_observed
+        self.visual_magnitude = visual_magnitude_from_observed(magnitude, band)
+
+    def to_angle_coord(self) -> GCRS:
+        return GCRS(ra=(self.right_ascension * u.hourangle), dec=(self.declination * u.degree), obstime=self.obstime)
+
+    def to_absolute_coord(self, distance: float) -> CartesianRepresentation:
+        relative = GCRS(ra=(self.right_ascension * u.hourangle), dec=(self.declination * u.degree),
+                        distance=(distance * u.au), obstime=self.obstime)
+        earth_position: CartesianRepresentation = get_body_barycentric('earth', self.obstime, 'jpl')
+        return relative.cartesian + earth_position
+
+
+class MinorPlanetState:
+    def __init__(self, obj: MinorPlanet, time: Time, position: np.ndarray, distance: float, mean_anomaly: float,
+                 orbit_plane_angle: float, z_angle_offset: float):
+        self.obj = obj
+        self.time = time
+        self.position = position
+        self.distance = distance
+        self.mean_anomaly = mean_anomaly
+        self.orbit_plane_angle = orbit_plane_angle
+        self.z_angle_offset = z_angle_offset
+
     @classmethod
-    def from_line(cls, line: str) -> 'MinorPlanetObservation':
-        packed_num, packed_desig, discov_ast, note1, note2, year, month, day_dec, ra_hour, ra_minute, ra_second, \
-            decl_degree, decl_minute, decl_second, mag, band, observatory = cls.reader.read(line)
-        return cls(datetime=DecimalDayDatetime(year, month, day_dec),
-                   year_sd=(sd(line[27:32]) / 365.25),
-                   right_ascension=(ra_hour + ra_minute / 60 + ra_second / 3600),
-                   right_ascension_sd=sd(line[42:44]),
-                   declination=(decl_degree + decl_minute / 60 + decl_second / 3600),
-                   declination_sd=sd(line[55:56]),
-                   magnitude=mag,
-                   magnitude_sd=sd(line[69:70]),
-                   band=band,
-                   is_discovery=(discov_ast == '*'))
+    def from_position(cls, obj: MinorPlanet, time: Time, position: np.ndarray,
+                      state_hint: 'MinorPlanetState | MinorPlanetEphemeris') -> 'MinorPlanetState':
+        distance = npl.norm(position)
+        return cls(obj, time, position, distance, None, None, None)
+        eccentric_anomaly = eccentric_anomaly_from_distance(distance, obj.semi_major_axis, obj.eccentricity,
+                                                            state_hint.mean_anomaly)
+        mean_anomaly = mean_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.eccentricity)
+        true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.beta)
+        z_angle_offset, orbit_plane_angle = z_angles(position, true_anomaly, obj.cot_i)
+        return cls(obj, time, position, distance, mean_anomaly, orbit_plane_angle, z_angle_offset)
+
+    @classmethod
+    def from_anomaly(cls, obj: MinorPlanet, time: Time, mean_anomaly: float, orbit_plane_angle: float,
+                     z_angle_offset: float) -> 'MinorPlanetState':
+        eccentric_anomaly = eccentric_anomaly_from_mean_anomaly(mean_anomaly, obj.eccentricity)
+        distance = distance_from_eccentric_anomaly(eccentric_anomaly, obj.semi_major_axis, obj.eccentricity)
+        true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.beta)
+        position = position_from_orbit_angles(true_anomaly, z_angle_offset, orbit_plane_angle,
+                                              obj.inclination, distance)
+        return cls(obj, time, position, distance, mean_anomaly, orbit_plane_angle, z_angle_offset)
 
 
-def parse_file(path: str, accept_methods: list[str] | None = None) -> list[MinorPlanetObservation]:
-    with open(path, 'rt', encoding='utf-8') as file:
-        return [MinorPlanetObservation.from_line(line)
-                for line in file.readlines()
-                if (accept_methods is not None and line[14] in accept_methods) or line[14].isupper()]
+class MinorPlanetEphemeris:
+    def __init__(self, obj: MinorPlanet, position: np.ndarray, semi_major_axis: float, eccentricity: float,
+                 inclination: float, mean_motion: float, mean_anomaly: float, true_anomaly: float,
+                 right_ascension: float, declination: float, apparent_ra: float, apparent_decl: float,
+                 visual_magnitude: float, elongation: float, phase: float) -> None:
+        self.obj = obj
+        self.position = position
+        self.semi_major_axis = semi_major_axis
+        self.eccentricity = eccentricity
+        self.inclination = inclination
+        self.mean_motion = mean_motion
+        self.mean_anomaly = mean_anomaly
+        self.true_anomaly = true_anomaly
+        self.right_ascension = right_ascension
+        self.declination = declination
+        self.apparent_ra = apparent_ra
+        self.apparent_decl = apparent_decl
+        self.visual_magnitude = visual_magnitude
+        self.elongation = elongation
+        self.phase = phase
 
 
-def elongation_from_observation(right_ascension: float, declination: float, earth_sun_position: np.ndarray,
-                                earth_sun_distance: float | None = None) -> float:
-    if earth_sun_distance is None:
-        earth_sun_distance = np.linalg.norm(earth_sun_position)
-    cos_a = math.cos(right_ascension)
-    sin_a = math.sin(right_ascension)
-    cos_d = math.cos(declination)
-    sin_d = math.sin(declination)
-    x, y, z = earth_sun_position
-    num = x * cos_d * cos_a + y * cos_d * sin_a + z * sin_d
-    return math.acos(-num / earth_sun_distance)
+def elongation_from_observation(obs: MinorPlanetObservation) -> float:
+    obj = obs.to_angle_coord()
+    sun: GCRS = get_body('sun', obs.obstime, None, 'jpl')
+    return obj.separation(sun).to(u.rad).value
 
 
-def phi(phase: float, slope: float) -> float:
-    half_tan = math.tan(phase / 2)
-    return (1 - slope) * math.exp(-3.33 * half_tan ** 0.63) + slope * math.exp(-1.87 * half_tan ** 1.22)
+def earth_sun_distance(time: Time) -> float:
+    earth_position = get_body_barycentric('earth', time, 'jpl')
+    sun_position: CartesianRepresentation = get_body_barycentric('sun', time, 'jpl')
+    return (earth_position - sun_position).norm().to(u.au).value
 
 
-def phi_prime(phase: float, slope: float) -> float:
-    half_tan = math.tan(phase / 2)
-    half_sec = 1 / math.cos(phase / 2)
-    return -(half_sec ** 2) * (1.05 * (1 - slope) * half_tan ** -0.37 * math.exp(-3.33 * half_tan ** 0.63) +
-                               1.14 * slope * half_tan ** 0.22 * math.exp(-1.87 * half_tan ** 1.22))
+def output_transform(obs: MinorPlanetObservation,
+                     state_hint: MinorPlanetState | MinorPlanetEphemeris) -> MinorPlanetState:
+    from photometry import distance_from_magnitude
+    distance = distance_from_magnitude(obs)
+    position: np.ndarray = obs.to_absolute_coord(distance).get_xyz().to(u.au).value
+    return MinorPlanetState.from_position(obs.obj, obs.obstime, position, state_hint)
 
 
-# https://www.minorplanetcenter.net/iau/info/BandConversion.txt
-VISUAL_CORRECTION: Final[dict[str, float]] = \
-    {' ': -0.8, 'U': -1.3, 'B': -0.8, 'g': -0.35, 'V': 0, 'r': 0.14, 'R': 0.4, 'C': 0.4, 'W': 0.4, 'i': 0.32,
-     'z': 0.26, 'I': 0.8, 'J': 1.2, 'w': -0.13, 'y': 0.32, 'L': 0.2, 'H': 1.4, 'K': 1.7, 'Y': 0.7, 'G': 0.28, 'v': 0,
-     'c': -0.05, 'o': 0.33, 'u': 2.5}
+def propagate(before_time: float, after_time: float, before_state: MinorPlanetState) -> MinorPlanetState:
+    obj = before_state.obj
+    delta_time = after_time - before_time
+    return MinorPlanetState.from_anomaly(obj=obj, time=before_state.time,
+                                         mean_anomaly=advance_mean_anomaly(before=before_state.mean_anomaly,
+                                                                           mean_motion=obj.mean_motion,
+                                                                           delta_time=delta_time),
+                                         orbit_plane_angle=before_state.orbit_plane_angle,
+                                         z_angle_offset=before_state.z_angle_offset)
 
 
-def distance_from_magnitude(observed_magnitude: float, band: str, elongation: float, earth_sun_distance: float,
-                            phase_guess: float, absolute_magnitude: float, slope: float) -> float:
-    visual_magnitude = observed_magnitude + VISUAL_CORRECTION[band]
-    mag_diff = visual_magnitude - absolute_magnitude
-    elong_sin = math.sin(elongation)
-
-    def f(phase: float) -> float:
-        return ((earth_sun_distance ** 2) * elong_sin * math.sin(phase + elongation) -
-                (10 ** (0.2 * mag_diff)) * (math.sin(phase) ** 2) * math.sqrt(phi(phase, slope)))
-
-    def f_prime(phase: float) -> float:
-        return ((earth_sun_distance ** 2) * elong_sin * math.cos(phase + elongation) - (10 ** (0.2 * mag_diff)) *
-                math.sin(phase) * math.cos(phase) * (phi(phase, slope)) ** -0.5 * phi_prime(phase, slope))
-
-    phase_root = scipy.optimize.newton(f, phase_guess, f_prime)
-    return earth_sun_distance * math.sin(phase_root + elongation) / math.sin(phase_root)
-
-
-def output_transform(obs: MinorPlanetObservation, absolute_magnitude: float, slope: float = 0.15) -> np.ndarray:
-    from astropy.coordinates import SkyCoord
-    from astropy.time import Time
-    from astropy.coordinates import solar_system_ephemeris, get_body_barycentric
-    solar_system_ephemeris.set('jpl')
-    obstime = Time(obs.datetime.to_datetime(), scale='utc')
-    earth_position: CartesianRepresentation = get_body_barycentric('earth', obstime)
-    sun_position: CartesianRepresentation = get_body_barycentric('sun', obstime)
-    earth_sun_position: CartesianRepresentation = earth_position - sun_position
-    earth_sun_distance: Quantity = earth_sun_position.norm()
-    elongation = elongation_from_observation(obs.right_ascension, obs.declination,
-                                             earth_sun_position.get_xyz().to(u.au).value,
-                                             earth_sun_distance.to(u.au).value)
-    phase_guess = 1  # TODO
-    distance = distance_from_magnitude(obs.magnitude, obs.band, elongation, earth_sun_distance.to(u.au).value,
-                                       phase_guess, absolute_magnitude, slope)
-    observed = SkyCoord(ra=(obs.right_ascension * u.hourangle), dec=(obs.declination * u.degree),
-                        distance=(distance * u.au), obstime=obstime, frame='fk5')
-    state: CartesianRepresentation = observed.icrs.cartesian + earth_position
-    return state.get_xyz().to(u.au).value
-
-
-def main():
-    obs = parse_file('data/Bennu.txt', accept_methods=['B', 'C'])
-    data = []
-    for o in obs:
-        try:
-            pos = output_transform(o, 20.9, 0.04)
-            # data.append((o.datetime.to_decimal_year(), pos))
-            data.append(pos)
-        except:
+def track(obj: MinorPlanet) -> None:
+    obss = obj.load_observations()
+    state0 = output_transform(obss[0])
+    before_state = state0
+    i = 1
+    while i < len(obss):
+        obs = obss[i]
+        if obs.obstime == before_state.time:
+            i += 1
             continue
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    d = np.array(data)
-    ax.scatter(d.T[0], d.T[1], d.T[2], c='r', depthshade=False)
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    plt.show()
+        predicted_state = propagate(before_time=obs.datetime.to_decimal_year(),
+                                    after_time=obs.datetime.to_decimal_year(),
+                                    before_state=before_state)
+        observed_state = output_transform(obs, predicted_state)
+        # input('Press Enter to continue...')
+        before_state = observed_state
+        i += 1
+
+
+#                            Name         File                 H      G     a      e      i
+OBJ_BENNU     = MinorPlanet('Bennu',     'data/Bennu.txt',     20.2, -0.03, 1.128, 0.204, 0.514)
+OBJ_2024_YR4  = MinorPlanet('2024 YR4',  'data/2024_yr4.txt',  23.9,  0.15, 2.516, 0.662, 0.469)
+OBJ_2010_RF12 = MinorPlanet('2010 RF12', 'data/2010_rf12.txt', 28.5,  0.15, 1.061, 0.188, 0.424)
 
 
 if __name__ == '__main__':
-    main()
+    obss = OBJ_BENNU.load_observations()
+    print(obss[130].datetime.to_datetime())
