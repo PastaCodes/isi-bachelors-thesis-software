@@ -4,17 +4,22 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Temporary plot">
-      <change afterPath="$PROJECT_DIR$/data/Bennu_ephemeris.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/misc.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/orbit.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/parse.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/photometry.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/visualize.py" afterDir="false" />
+    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Work on output transform and orbit propagation">
+      <change afterPath="$PROJECT_DIR$/TODO.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/2010_rf12_eph.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/2024_yr4_eph.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/Bennu_eph.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/ObsCodes.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Bennu_ephemeris.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/misc.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/orbit.py" beforeDir="false" afterPath="$PROJECT_DIR$/orbit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parse.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/photometry.py" beforeDir="false" afterPath="$PROJECT_DIR$/photometry.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualize.py" beforeDir="false" afterPath="$PROJECT_DIR$/visualize.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,6 +124,15 @@
       <updated>1752585834590</updated>
       <workItem from="1752585835398" duration="123000" />
     </task>
+    <task id="LOCAL-00001" summary="Work on output transform and orbit propagation">
+      <option name="closed" value="true" />
+      <created>1755087553129</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1755087553129</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -134,5 +148,9 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Work on output transform and orbit propagation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Work on output transform and orbit propagation" />
   </component>
 </project>

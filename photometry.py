@@ -2,29 +2,10 @@ from typing import Final
 
 import numpy as np
 import scipy.optimize as spo
+import astropy.units as u
+from astropy.units import Quantity
 
-from main import MinorPlanetObservation, earth_sun_distance, elongation_from_observation
-
-
-def phi(phase: float, slope: float) -> float:
-    """
-    Function Φ(α) as in the HG model, first described by Bowell et al. 1989.
-    :param phase: [rad]
-    :param slope: Phase slope parameter G [rad]
-    """
-    half_tan = np.tan(phase / 2)
-    return (1 - slope) * np.exp(-3.33 * np.pow(half_tan, 0.63)) + slope * np.exp(-1.87 * np.pow(half_tan, 1.22))
-
-
-def phi_prime(phase: float, slope: float) -> float:
-    """
-    Derivative of the above.
-    """
-    half_tan = np.tan(phase / 2)
-    half_sec = 1 / np.cos(phase / 2)
-    return -(half_sec * half_sec) * (
-            1.05 * (1 - slope) * np.pow(half_tan, -0.37) * np.exp(-3.33 * np.pow(half_tan, 0.63)) +
-                1.14 * slope * np.pow(half_tan, 0.22) * np.exp(-1.87 * np.pow(half_tan, 1.22)))
+from main import MinorPlanetObservation
 
 
 # https://www.minorplanetcenter.net/iau/info/BandConversion.txt
@@ -34,21 +15,22 @@ VISUAL_CORRECTION: Final[dict[str, float]] = \
      'c': -0.05, 'o': 0.33, 'u': 2.5}
 
 
-def visual_magnitude_from_observed(observed_magnitude: float, band: str) -> float:
-    return observed_magnitude + VISUAL_CORRECTION[band]
+def visual_magnitude_from_observed(observed_magnitude: Quantity, band: str) -> Quantity:
+    return observed_magnitude + VISUAL_CORRECTION[band] * u.mag
 
 
-def phase_from_magnitude(obs: MinorPlanetObservation, elongation: float | None = None,
-                         es_dist: float | None = None) -> float:
-    if elongation is None:
-        elongation = elongation_from_observation(obs)
-    if es_dist is None:
-        es_dist = earth_sun_distance(obs.obstime)
+def phi(phase: float, slope: float) -> Quantity:
+    half_tan = np.tan(phase / 2)
+    return (1 - slope) * np.exp(-3.33 * np.pow(half_tan, 0.63)) + slope * np.exp(-1.87 * np.pow(half_tan, 1.22))
 
-    # print(f'G = {obs.obj.slope}, R = {es_dist}, θ = {elongation}, V = {visual_magnitude}, H = {obs.obj.absolute_magnitude}')
 
-    mag_diff = obs.visual_magnitude - obs.obj.absolute_magnitude
-    elong_sin = np.sin(elongation)
+def phase_from_magnitude(obs: MinorPlanetObservation, visual_magnitude: Quantity, elongation: Quantity,
+                         sun_observer_dist: Quantity, tol: float = 2e-12) -> Quantity:
+    mag_diff = visual_magnitude.to(u.mag).value - obs.target_body.absolute_magnitude.to(u.mag).value
+    th = elongation.to(u.rad).value
+    sin_th = np.sin(th)
+    rr = sun_observer_dist.to(u.au).value
+    gg = obs.target_body.slope.value
 
     # Phase is governed by the equation f(α)=0, where f is not easily invertible,
     # so we use the Newton-Raphson method to find a root.
@@ -57,20 +39,17 @@ def phase_from_magnitude(obs: MinorPlanetObservation, elongation: float | None =
 
     def f(a: float) -> float:
         sin_a = np.sin(a)
-        return (es_dist * es_dist * elong_sin * np.sin(a + elongation) -
-                np.pow(10, 0.2 * mag_diff) * sin_a * sin_a * np.sqrt(phi(a, obs.obj.slope)))
+        return (rr * rr * sin_th * np.sin(a + th) -
+                np.pow(10, 0.2 * mag_diff) * sin_a * sin_a * np.sqrt(phi(a, gg)))
 
-    # def f_prime(a: float) -> float:
-    #     return (es_dist * es_dist * elong_sin * np.cos(a + elongation) - np.pow(10, 0.2 * mag_diff) *
-    #             np.sin(a) * np.cos(a) * np.pow(phi(a, obs.obj.slope), -0.5) * phi_prime(a, obs.obj.slope))
-
-    # return spo.newton(f, phase_guess, f_prime)
-
-    return spo.brentq(f, 0, np.pi)
+    return spo.brentq(f, 0, np.pi, xtol=tol) * u.rad
 
 
-def distance_from_magnitude(obs: MinorPlanetObservation) -> float:
-    elongation = elongation_from_observation(obs)
-    es_dist = earth_sun_distance(obs.obstime)
-    phase = phase_from_magnitude(obs, elongation, es_dist)
-    return es_dist * np.sin(phase + elongation) / np.sin(phase)
+def distance_from_phase(phase: Quantity, elongation: Quantity, sun_observer_dist: Quantity) -> Quantity:
+    return sun_observer_dist * np.sin(phase + elongation) / np.sin(phase)
+
+
+def distance_from_magnitude(obs: MinorPlanetObservation, visual_magnitude: Quantity, elongation: Quantity,
+                            sun_observer_dist: Quantity) -> Quantity:
+    phase = phase_from_magnitude(obs, visual_magnitude, elongation, sun_observer_dist)
+    return distance_from_phase(phase, elongation, sun_observer_dist)

@@ -1,153 +1,150 @@
 import numpy.linalg as npl
 from astropy import units as u
-from astropy.coordinates import GCRS, CartesianRepresentation, get_body_barycentric, get_body
-from astropy.time import Time
+from astropy.coordinates import GCRS, get_body_barycentric, EarthLocation
+from astropy.time import Time, TimeDelta
 
 from orbit import *
-from misc import DecimalDayDatetime
+
+
+class Observatory:
+    def __init__(self, code: str, name: str, location: EarthLocation):
+        self.code = code
+        self.name = name
+        self.location = location
 
 
 class MinorPlanet:
-    def __init__(self, name:str, observations_file: str, absolute_magnitude: float, slope: float,
-                 # Begin with the dubious parameters
-                 semi_major_axis: float,
-                 eccentricity: float,
-                 inclination: float) -> None:
+    def __init__(self, name: str, hh: Quantity, gg: Quantity, a: Quantity, e: Quantity, i: Quantity,
+                 observations_filepath: str | None = None, ephemeris_filepath: str | None = None):
         self.name = name
-        self.observations_file = observations_file
-        self.absolute_magnitude = absolute_magnitude
-        self.slope = slope
-        self.semi_major_axis = semi_major_axis
-        self.eccentricity = eccentricity
-        self.inclination = inclination
+        self.absolute_magnitude = hh
+        self.slope = gg
+        self.semi_major_axis = a
+        self.eccentricity = e
+        self.inclination = i
+        self.observations_filepath = observations_filepath
+        self.ephemeris_filepath = ephemeris_filepath
 
-        self.cot_i = 1 / math.tan(inclination)
-        self.mean_motion = get_mean_motion(semi_major_axis)
-        self.period = 2 * math.pi / self.mean_motion
-        self.beta = eccentricity / (1 + math.sqrt(1 - eccentricity ** 2))
-
-    def load_observations(self) -> list['MinorPlanetObservation']:
-        from parse import parse_obs_file
-        return parse_obs_file(self, accept_methods=['B', 'C'])
+        self.mean_motion = get_mean_motion(a)
+        self.beta = compute_beta(e)
+        self.minimum_distance = a * (1 - e)
+        self.maximum_distance = a * (1 + e)
 
 
-# As described by https://www.minorplanetcenter.net/iau/info/OpticalObs.html
 class MinorPlanetObservation:
-    def __init__(self, obj: MinorPlanet, datetime: DecimalDayDatetime, year_sd: float,
-                 right_ascension: float, right_ascension_sd: float,
-                 declination: float, declination_sd: float, magnitude: float, magnitude_sd: float, band: str,
-                 is_discovery: bool) -> None:
-        self.obj = obj
-        self.datetime = datetime
-        self.year_sd = year_sd
-        self.right_ascension = right_ascension
-        self.right_ascension_sd = right_ascension_sd
-        self.declination = declination
-        self.declination_sd = declination_sd
-        self.magnitude = magnitude
-        self.magnitude_sd = magnitude_sd
+    def __init__(self, body: MinorPlanet, epoch: Time, observatory: Observatory, ra: Quantity, dec: Quantity,
+                 mag: Quantity, band: str, epoch_var: Quantity = 0, ra_var: Quantity = 0, dec_var: Quantity = 0,
+                 mag_var: Quantity = 0):
+        self.target_body = body
+        self.epoch = epoch
+        self.epoch_variance = epoch_var
+        self.observatory = observatory
+        self.right_ascension = ra
+        self.right_ascension_variance = ra_var
+        self.declination = dec
+        self.declination_variance = dec_var
+        self.magnitude = mag
+        self.magnitude_variance = mag_var
         self.band = band
-        self.is_discovery = is_discovery
-
-        self.obstime = Time(datetime.to_datetime(), scale='utc')
-        from photometry import visual_magnitude_from_observed
-        self.visual_magnitude = visual_magnitude_from_observed(magnitude, band)
-
-    def to_angle_coord(self) -> GCRS:
-        return GCRS(ra=(self.right_ascension * u.hourangle), dec=(self.declination * u.degree), obstime=self.obstime)
-
-    def to_absolute_coord(self, distance: float) -> CartesianRepresentation:
-        relative = GCRS(ra=(self.right_ascension * u.hourangle), dec=(self.declination * u.degree),
-                        distance=(distance * u.au), obstime=self.obstime)
-        earth_position: CartesianRepresentation = get_body_barycentric('earth', self.obstime, 'jpl')
-        return relative.cartesian + earth_position
 
 
 class MinorPlanetState:
-    def __init__(self, obj: MinorPlanet, time: Time, position: np.ndarray, distance: float, mean_anomaly: float,
-                 orbit_plane_angle: float, z_angle_offset: float):
-        self.obj = obj
-        self.time = time
-        self.position = position
-        self.distance = distance
-        self.mean_anomaly = mean_anomaly
-        self.orbit_plane_angle = orbit_plane_angle
-        self.z_angle_offset = z_angle_offset
-
-    @classmethod
-    def from_position(cls, obj: MinorPlanet, time: Time, position: np.ndarray,
-                      state_hint: 'MinorPlanetState | MinorPlanetEphemeris') -> 'MinorPlanetState':
-        distance = npl.norm(position)
-        return cls(obj, time, position, distance, None, None, None)
-        eccentric_anomaly = eccentric_anomaly_from_distance(distance, obj.semi_major_axis, obj.eccentricity,
-                                                            state_hint.mean_anomaly)
-        mean_anomaly = mean_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.eccentricity)
-        true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.beta)
-        z_angle_offset, orbit_plane_angle = z_angles(position, true_anomaly, obj.cot_i)
-        return cls(obj, time, position, distance, mean_anomaly, orbit_plane_angle, z_angle_offset)
-
-    @classmethod
-    def from_anomaly(cls, obj: MinorPlanet, time: Time, mean_anomaly: float, orbit_plane_angle: float,
-                     z_angle_offset: float) -> 'MinorPlanetState':
-        eccentric_anomaly = eccentric_anomaly_from_mean_anomaly(mean_anomaly, obj.eccentricity)
-        distance = distance_from_eccentric_anomaly(eccentric_anomaly, obj.semi_major_axis, obj.eccentricity)
-        true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, obj.beta)
-        position = position_from_orbit_angles(true_anomaly, z_angle_offset, orbit_plane_angle,
-                                              obj.inclination, distance)
-        return cls(obj, time, position, distance, mean_anomaly, orbit_plane_angle, z_angle_offset)
+    def __init__(self, body: MinorPlanet, epoch: Time, pos: CartesianRepresentation, mm: Quantity,
+                 asc_long: Quantity, peri_arg: Quantity):
+        self.body = body
+        self.epoch = epoch
+        self.position = pos
+        self.mean_anomaly = mm
+        self.ascending_longitude = asc_long
+        self.periapsis_argument = peri_arg
 
 
 class MinorPlanetEphemeris:
-    def __init__(self, obj: MinorPlanet, position: np.ndarray, semi_major_axis: float, eccentricity: float,
-                 inclination: float, mean_motion: float, mean_anomaly: float, true_anomaly: float,
-                 right_ascension: float, declination: float, apparent_ra: float, apparent_decl: float,
-                 visual_magnitude: float, elongation: float, phase: float) -> None:
-        self.obj = obj
-        self.position = position
-        self.semi_major_axis = semi_major_axis
-        self.eccentricity = eccentricity
-        self.inclination = inclination
-        self.mean_motion = mean_motion
-        self.mean_anomaly = mean_anomaly
-        self.true_anomaly = true_anomaly
-        self.right_ascension = right_ascension
-        self.declination = declination
-        self.apparent_ra = apparent_ra
-        self.apparent_decl = apparent_decl
-        self.visual_magnitude = visual_magnitude
-        self.elongation = elongation
-        self.phase = phase
-
-
-def elongation_from_observation(obs: MinorPlanetObservation) -> float:
-    obj = obs.to_angle_coord()
-    sun: GCRS = get_body('sun', obs.obstime, None, 'jpl')
-    return obj.separation(sun).to(u.rad).value
-
-
-def earth_sun_distance(time: Time) -> float:
-    earth_position = get_body_barycentric('earth', time, 'jpl')
-    sun_position: CartesianRepresentation = get_body_barycentric('sun', time, 'jpl')
-    return (earth_position - sun_position).norm().to(u.au).value
+    def __init__(self, body: MinorPlanet, epoch: Time, observer_loc: EarthLocation, pos: CartesianRepresentation,
+                 a: Quantity, e: Quantity, i: Quantity, n: Quantity, asc_long: Quantity, peri_arg: Quantity,
+                 mm: Quantity, v: Quantity, ra: Quantity, dec: Quantity, app_ra: Quantity, app_dec: Quantity,
+                 vv: Quantity, th: Quantity, phi: Quantity):
+        self.body = body
+        self.epoch = epoch
+        self.observer_location = observer_loc
+        self.position = pos
+        self.semi_major_axis = a
+        self.eccentricity = e
+        self.inclination = i
+        self.mean_motion = n
+        self.ascending_longitude = asc_long
+        self.periapsis_argument = peri_arg
+        self.mean_anomaly = mm
+        self.true_anomaly = v
+        self.right_ascension = ra
+        self.declination = dec
+        self.apparent_right_ascension = app_ra
+        self.apparent_declination = app_dec
+        self.visual_magnitude = vv
+        self.elongation = th  # Apparent elongation
+        self.phase = phi
 
 
 def output_transform(obs: MinorPlanetObservation,
-                     state_hint: MinorPlanetState | MinorPlanetEphemeris) -> MinorPlanetState:
-    from photometry import distance_from_magnitude
-    distance = distance_from_magnitude(obs)
-    position: np.ndarray = obs.to_absolute_coord(distance).get_xyz().to(u.au).value
-    return MinorPlanetState.from_position(obs.obj, obs.obstime, position, state_hint)
+                     hint: MinorPlanetState | MinorPlanetEphemeris) -> MinorPlanetState:
+    body = obs.target_body
+
+    # Earth w.r.t. SSB
+    earth_pos: CartesianRepresentation = get_body_barycentric('earth', obs.epoch, 'jpl')
+    # Sun w.r.t. SSB
+    sun_pos: CartesianRepresentation = get_body_barycentric('sun', obs.epoch, 'jpl')
+
+    # Observer w.r.t. Earth
+    observer_geoc_pos, observer_geoc_vel = obs.observatory.location.get_gcrs_posvel(obs.epoch)
+    # Observer w.r.t. SSB
+    observer_pos: CartesianRepresentation = observer_geoc_pos + earth_pos
+
+    # Sun w.r.t. observer
+    sun_observer_pos = GCRS(sun_pos - earth_pos, obstime=obs.epoch,
+                            obsgeoloc=observer_geoc_pos, obsgeovel=observer_geoc_vel)
+    # Target w.r.t. observer (WITHOUT information on the distance)
+    target_observer_pos = GCRS(ra=obs.right_ascension, dec=obs.declination, obstime=obs.epoch,
+                               obsgeoloc=observer_geoc_pos, obsgeovel=observer_geoc_vel)
+
+    elongation = target_observer_pos.separation(sun_observer_pos)
+
+    sun_observer_dist: Quantity = sun_observer_pos.distance
+
+    from photometry import visual_magnitude_from_observed, distance_from_magnitude
+    visual_magnitude = visual_magnitude_from_observed(obs.magnitude, obs.band)
+    target_observer_dist = distance_from_magnitude(obs, visual_magnitude, elongation, sun_observer_dist)
+
+    # Target w.r.t. observer (now WITH information on the distance)
+    target_observer_pos = GCRS(ra=obs.right_ascension, dec=obs.declination, distance=target_observer_dist,
+                               obstime=obs.epoch, obsgeoloc=observer_geoc_pos, obsgeovel=observer_geoc_vel)
+    # Target w.r.t. SSB
+    target_pos = target_observer_pos.cartesian + observer_pos
+
+    orbit_dist = npl.norm(target_pos.get_xyz())
+    eccentric_anomaly = eccentric_anomaly_from_distance(orbit_dist, body.semi_major_axis, body.eccentricity,
+                                                        hint.mean_anomaly)
+    mean_anomaly = mean_anomaly_from_eccentric_anomaly(eccentric_anomaly, body.eccentricity)
+    true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, body.beta)
+
+    asc_long, peri_arg = orbital_angles_from_position(target_pos, true_anomaly, body.inclination,
+                                                      hint.ascending_longitude)
+
+    return MinorPlanetState(body, obs.epoch, target_pos, mean_anomaly, asc_long, peri_arg)
 
 
-def propagate(before_time: float, after_time: float, before_state: MinorPlanetState) -> MinorPlanetState:
-    obj = before_state.obj
-    delta_time = after_time - before_time
-    return MinorPlanetState.from_anomaly(obj=obj, time=before_state.time,
-                                         mean_anomaly=advance_mean_anomaly(before=before_state.mean_anomaly,
-                                                                           mean_motion=obj.mean_motion,
-                                                                           delta_time=delta_time),
-                                         orbit_plane_angle=before_state.orbit_plane_angle,
-                                         z_angle_offset=before_state.z_angle_offset)
+def propagate(before_time: Time, after_time: Time, before_state: MinorPlanetState) -> MinorPlanetState:
+    body = before_state.body
+    delta_time: TimeDelta = after_time - before_time
+    mean_anomaly = advance_mean_anomaly(before=before_state.mean_anomaly,
+                                        mean_motion=body.mean_motion,
+                                        delta_time=delta_time.to(u.year))
+    eccentric_anomaly = eccentric_anomaly_from_mean_anomaly(mean_anomaly, body.eccentricity)
+    distance = distance_from_eccentric_anomaly(eccentric_anomaly, body.semi_major_axis, body.eccentricity)
+    true_anomaly = true_anomaly_from_eccentric_anomaly(eccentric_anomaly, body.beta)
+    position = position_from_orbital_angles(true_anomaly, before_state.periapsis_argument,
+                                            before_state.ascending_longitude, body.inclination, distance)
+    return MinorPlanetState(body, after_time, position, mean_anomaly,
+                            before_state.ascending_longitude, before_state.periapsis_argument)
 
 
 def track(obj: MinorPlanet) -> None:
@@ -157,11 +154,11 @@ def track(obj: MinorPlanet) -> None:
     i = 1
     while i < len(obss):
         obs = obss[i]
-        if obs.obstime == before_state.time:
+        if obs.time == before_state.time:
             i += 1
             continue
-        predicted_state = propagate(before_time=obs.datetime.to_decimal_year(),
-                                    after_time=obs.datetime.to_decimal_year(),
+        predicted_state = propagate(before_time=obs.time.to_value('decimalyear'),
+                                    after_time=obs.time.to_value('decimalyear'),
                                     before_state=before_state)
         observed_state = output_transform(obs, predicted_state)
         # input('Press Enter to continue...')
@@ -169,12 +166,36 @@ def track(obj: MinorPlanet) -> None:
         i += 1
 
 
-#                            Name         File                 H      G     a      e      i
-OBJ_BENNU     = MinorPlanet('Bennu',     'data/Bennu.txt',     20.2, -0.03, 1.128, 0.204, 0.514)
-OBJ_2024_YR4  = MinorPlanet('2024 YR4',  'data/2024_yr4.txt',  23.9,  0.15, 2.516, 0.662, 0.469)
-OBJ_2010_RF12 = MinorPlanet('2010 RF12', 'data/2010_rf12.txt', 28.5,  0.15, 1.061, 0.188, 0.424)
+BODY_BENNU = MinorPlanet(name='1999 RQ36',
+                         hh=(20.21 * u.mag),
+                         gg=(-0.031 * u.dimensionless_unscaled),
+                         a=(1.128 * u.au),
+                         e=(0.204 * u.dimensionless_unscaled),
+                         i=(0.514 * u.rad),
+                         observations_filepath='data/Bennu.txt',
+                         ephemeris_filepath='data/Bennu_eph.txt')
+
+BODY_2010_RF12 = MinorPlanet(name='2010 RF12',
+                             hh=(28.42 * u.mag),
+                             gg=(0.15 * u.dimensionless_unscaled),
+                             a=(1.061 * u.au),
+                             e=(0.188 * u.dimensionless_unscaled),
+                             i=(0.424 * u.rad),
+                             observations_filepath='data/2010_rf12.txt',
+                             ephemeris_filepath='data/2010_rf12_eph.txt')
+
+BODY_2024_YR4 = MinorPlanet(name='2024 YR4',
+                            hh=(23.92 * u.mag),
+                            gg=(0.15 * u.dimensionless_unscaled),
+                            a=(2.516 * u.au),
+                            e=(0.662 * u.dimensionless_unscaled),
+                            i=(0.469 * u.rad),
+                            observations_filepath='data/2024_yr4.txt',
+                            ephemeris_filepath='data/2024_yr4_eph.txt')
 
 
 if __name__ == '__main__':
-    obss = OBJ_BENNU.load_observations()
-    print(obss[130].datetime.to_datetime())
+    from query import query_ephemeris
+    ephs = query_ephemeris(BODY_2024_YR4)
+    from parse import dump_ephemeris
+    dump_ephemeris(ephs, BODY_2024_YR4.ephemeris_filepath)
