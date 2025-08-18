@@ -25,16 +25,16 @@ def do_filter(body: MinorPlanet):
 
     x0 = reverse_transform(obss[0], body.initial_state_hint).to_vector()
     pp0 = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.5])
-    epoch = obss[0].epoch
+    prev_epoch = obss[0].epoch
     ukf.x = x0
     ukf.P = pp0
 
     for i, obs in enumerate(obss[1:]):
         ukf.Q = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
-        ukf.R = np.diag([0.1, 0.1, 0.1])
-        ukf.predict(dt=(obs.epoch - epoch), before_epoch=epoch)
+        ukf.R = np.diag([0.001, 0.001, 0.001])
+        ukf.predict(dt=(obs.epoch - prev_epoch), before_epoch=prev_epoch)
         ukf.update(z=obs.to_vector(), epoch=obs.epoch, observatory=obs.observatory)
-        state = MinorPlanetState.from_vector(ukf.x, body, obs.epoch)
-        print(state.position)
+        state_estimate = MinorPlanetState.from_vector(ukf.x, body, obs.epoch)
+        print(state_estimate.position)
         input()
-        epoch = obs.epoch
+        prev_epoch = obs.epoch
