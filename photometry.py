@@ -5,7 +5,7 @@ import scipy.optimize as spo
 import astropy.units as u
 from astropy.units import Quantity
 
-from main import MinorPlanetObservation
+from classes import MinorPlanetObservation, MinorPlanetState
 
 
 # https://www.minorplanetcenter.net/iau/info/BandConversion.txt
@@ -15,13 +15,20 @@ VISUAL_CORRECTION: Final[dict[str, float]] = \
      'c': -0.05, 'o': 0.33, 'u': 2.5}
 
 
-def visual_magnitude_from_observed(observed_magnitude: Quantity, band: str) -> Quantity:
-    return observed_magnitude + VISUAL_CORRECTION[band] * u.mag
+def visual_magnitude_from_observed(observed_magnitude: float, band: str) -> float:
+    return observed_magnitude + VISUAL_CORRECTION[band]
 
 
 def phi(phase: float, slope: float) -> Quantity:
     half_tan = np.tan(phase / 2)
     return (1 - slope) * np.exp(-3.33 * np.pow(half_tan, 0.63)) + slope * np.exp(-1.87 * np.pow(half_tan, 1.22))
+
+
+def magnitude_from_state(state: MinorPlanetState, phase: Quantity,
+                         target_sun_dist: Quantity, target_observer_dist: Quantity) -> Quantity:
+    phi_correction = 2.5 * np.log10(phi(phase.to(u.rad).value, state.body.slope.value)) * u.mag
+    reduced_mag = state.body.absolute_magnitude - phi_correction
+    return reduced_mag + 5 * np.log10(target_sun_dist.to(u.au).value * target_observer_dist.to(u.au).value) * u.mag
 
 
 def phase_from_magnitude(obs: MinorPlanetObservation, visual_magnitude: Quantity, elongation: Quantity,
@@ -49,7 +56,6 @@ def distance_from_phase(phase: Quantity, elongation: Quantity, sun_observer_dist
     return sun_observer_dist * np.sin(phase + elongation) / np.sin(phase)
 
 
-def distance_from_magnitude(obs: MinorPlanetObservation, visual_magnitude: Quantity, elongation: Quantity,
-                            sun_observer_dist: Quantity) -> Quantity:
-    phase = phase_from_magnitude(obs, visual_magnitude, elongation, sun_observer_dist)
+def distance_from_magnitude(obs: MinorPlanetObservation, elongation: Quantity, sun_observer_dist: Quantity) -> Quantity:
+    phase = phase_from_magnitude(obs, obs.visual_magnitude, elongation, sun_observer_dist)
     return distance_from_phase(phase, elongation, sun_observer_dist)

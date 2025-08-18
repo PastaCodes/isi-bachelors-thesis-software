@@ -5,8 +5,10 @@ from astropy.coordinates import EarthLocation, CartesianRepresentation
 from astropy.time import Time
 from fortranformat import FortranRecordReader
 
-from main import MinorPlanetObservation, MinorPlanet, MinorPlanetEphemeris, Observatory
+from classes import MinorPlanetObservation, MinorPlanet, MinorPlanetEphemeris, Observatory
 from misc import location_from_parallax, decimal_day_date_to_time
+from photometry import visual_magnitude_from_observed
+
 
 # As described in https://www.minorplanetcenter.net/iau/lists/ObsCodesF.html
 OBSERVATORY_FORMAT: Final[str] = '(A3, 1X, F9.5, F8.6, F9.6, A50)'
@@ -34,7 +36,8 @@ observation_reader = FortranRecordReader(OBSERVATION_FORMAT)
 def parse_observation_line(body: MinorPlanet, line: str) -> MinorPlanetObservation:
     packed_num, packed_desig, discov_ast, note1, note2, year, month, day_dec, ra_hour, ra_minute, ra_second, \
         decl_degree, decl_minute, decl_second, mag, band, observatory_code = observation_reader.read(line)
-    return MinorPlanetObservation(body=body,
+    visual_mag = visual_magnitude_from_observed(float(mag), band)
+    return MinorPlanetObservation(target_body=body,
                                   epoch=decimal_day_date_to_time(year, month, day_dec),
                                   # epoch_var=(sd(line[27:32]) / 365.25),
                                   observatory=observatories[observatory_code],
@@ -42,9 +45,9 @@ def parse_observation_line(body: MinorPlanet, line: str) -> MinorPlanetObservati
                                   # ra_var=sd(line[42:44]),
                                   dec=(decl_degree + decl_minute / 60 + decl_second / 3600) * u.deg,
                                   # dec_var=sd(line[55:56]),
-                                  mag=mag * u.mag,
-                                  # mag_var=sd(line[69:70]),
-                                  band=band)
+                                  visual_mag=visual_mag * u.mag,
+                                  # mag_var=sd(line[69:70])
+                                  )
 
 
 def parse_observations(body: MinorPlanet,

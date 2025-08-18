@@ -7,3 +7,4 @@ astropy~=7.1.0
 jplephem~=2.23
 certifi~=2025.8.3
 requests~=2.32.4
+filterpy~=1.4.5
