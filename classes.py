@@ -4,6 +4,7 @@ from astropy.time import Time
 import astropy.units as u
 from astropy.units import Quantity
 
+from misc import arctan2pos_f
 from orbit import get_mean_motion, compute_beta
 
 
@@ -50,13 +51,17 @@ class MinorPlanetObservation:
         self.magnitude_variance = mag_var
 
     def to_vector(self) -> np.ndarray:
-        return np.array([self.right_ascension.to(u.rad).value,
-                         self.declination.to(u.rad).value,
-                         self.visual_magnitude.to(u.mag).value])
+        ra = self.right_ascension.to(u.rad).value
+        dec = self.declination.to(u.rad).value
+        mag = self.visual_magnitude.to(u.mag).value
+        return np.array([np.cos(ra), np.sin(ra), np.cos(dec), np.sin(dec), mag])
 
     @classmethod
-    def from_vector(cls, measurement_vec: np.ndarray, target_body: MinorPlanet, epoch: Time, observatory: Observatory) -> 'MinorPlanetObservation':
-        ra, dec, visual_mag = measurement_vec
+    def from_vector(cls, measurement_vec: np.ndarray, target_body: MinorPlanet, epoch: Time,
+                    observatory: Observatory) -> 'MinorPlanetObservation':
+        cos_ra, sin_ra, cos_dec, sin_dec, visual_mag = measurement_vec
+        ra = arctan2pos_f(sin_ra, cos_ra)
+        dec = arctan2pos_f(sin_dec, cos_dec)
         return MinorPlanetObservation(target_body=target_body, epoch=epoch, observatory=observatory,
                                       ra=(ra * u.rad), dec=(dec * u.rad), visual_mag=(visual_mag * u.mag))
 
@@ -72,17 +77,24 @@ class MinorPlanetState:
         self.periapsis_argument = peri_arg
 
     def to_vector(self) -> np.ndarray:
-        xyz = self.position.get_xyz()
-        return np.array([xyz[0].to(u.au).value,
-                         xyz[1].to(u.au).value,
-                         xyz[2].to(u.au).value,
-                         self.mean_anomaly.to(u.rad).value,
-                         self.ascending_longitude.to(u.rad).value,
-                         self.periapsis_argument.to(u.rad).value])
+        x, y, z = self.position.get_xyz().to(u.au).value
+        mm = self.mean_anomaly.to(u.rad).value
+        asc_long = self.ascending_longitude.to(u.rad).value
+        peri_arg = self.periapsis_argument.to(u.rad).value
+        cos_mm = np.cos(mm)
+        sin_mm = np.sin(mm)
+        cos_asc_long = np.cos(asc_long)
+        sin_asc_long = np.sin(asc_long)
+        cos_peri_arg = np.cos(peri_arg)
+        sin_peri_arg = np.sin(peri_arg)
+        return np.array([x, y, z, cos_mm, sin_mm, cos_asc_long, sin_asc_long, cos_peri_arg, sin_peri_arg])
 
     @classmethod
     def from_vector(cls, vec: np.ndarray, body: MinorPlanet, epoch: Time | None) -> 'MinorPlanetState':
-        x, y, z, mm, asc_long, peri_arg = vec
+        x, y, z, cos_mm, sin_mm, cos_asc_long, sin_asc_long, cos_peri_arg, sin_peri_arg = vec
+        mm = arctan2pos_f(sin_mm, cos_mm)
+        asc_long = arctan2pos_f(cos_asc_long, sin_asc_long)
+        peri_arg = arctan2pos_f(sin_peri_arg, cos_peri_arg)
         return MinorPlanetState(body=body, epoch=epoch, pos=CartesianRepresentation(x, y, z, u.au), mm=(mm * u.rad),
                                 asc_long=(asc_long * u.rad), peri_arg=(peri_arg * u.rad))
 

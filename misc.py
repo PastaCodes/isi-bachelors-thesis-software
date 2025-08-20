@@ -8,34 +8,67 @@ import astropy.units as u
 from astropy.units import Quantity
 
 
-def safe_acos(a: float | Quantity) -> float | Quantity:
+def wrap_angle(a: Quantity) -> Quantity:
+    return wrap_angle_f(a.to_value(u.rad)) * u.rad
+
+
+def wrap_angle_f(a: float) -> float:
+    return a - 2 * np.pi * np.floor(a / (2 * np.pi))
+
+
+def safe_arccos(a: Quantity) -> Quantity:
+    assert a.unit == u.dimensionless_unscaled
+    return safe_arccos_f(a.value) * u.rad
+
+
+def safe_arccos_f(a: float) -> float:
     return np.acos(np.clip(a, -1.0, 1.0))
 
 
-def cot(a: float | Quantity) -> float | Quantity:
-    if isinstance(a, Quantity):
-        return np.tan(np.pi / 2 * u.rad - a)
-    else:
-        return np.tan(np.pi / 2 - a)
+def cot(a: Quantity) -> Quantity:
+    assert a.unit.is_equivalent(u.rad)
+    return cot_f(a.to_value(u.rad)) * u.dimensionless_unscaled
 
 
-def atan2pos(y: Quantity, x: Quantity) -> Quantity:
-    v = np.atan2(y, x)
-    return v if v >= 0 else 2 * np.pi * u.rad + v
+def cot_f(a: float) -> float:
+    return np.tan(np.pi / 2 - a)
 
 
-def law_of_cosines(adj1: float | Quantity, adj2: float | Quantity, opp: float | Quantity) -> float | Quantity:
-    return np.acos((adj1 * adj1 + adj2 * adj2 - opp * opp) / (2 * adj1 * adj2))
+def arctan2pos(y: Quantity, x: Quantity) -> Quantity:
+    assert x.unit.is_equivalent(y.unit)
+    return arctan2pos_f(y.value, x.to_value(y.unit)) * u.rad
 
 
-def closest_angle(choice1: Quantity, choice2: Quantity, reference: Quantity) -> Quantity:
-    diff1 = np.abs(choice1 - reference)
-    diff1 = np.minimum(diff1, 2 * np.pi * u.rad - diff1)
-    diff2 = np.abs(choice2 - reference)
-    diff2 = np.minimum(diff2, 2 * np.pi * u.rad - diff2)
-    if diff2 < diff1:
-        return choice2
-    return choice1
+def arctan2pos_f(y: float, x: float) -> float:
+    return wrap_angle_f(np.arctan2(y, x))
+
+
+def law_of_cosines(adj1: Quantity, adj2: Quantity, opp: Quantity) -> Quantity:
+    assert adj1.unit.is_equivalent(adj2.unit) and adj1.unit.is_equivalent(opp.unit)
+    return law_of_cosines_f(adj1.value, adj2.to_value(adj1.unit), opp.to_value(adj1.unit)) * u.rad
+
+
+def law_of_cosines_f(adj1: float, adj2: float, opp: float) -> float:
+    return safe_arccos_f((adj1 * adj1 + adj2 * adj2 - opp * opp) / (2 * adj1 * adj2))
+
+
+def angle_dist(a1: Quantity, a2: Quantity) -> Quantity:
+    return angle_dist_f(a1.to_value(u.rad), a2.to_value(u.rad)) * u.rad
+
+
+def angle_dist_f(a1: float, a2: float) -> float:
+    a1 = wrap_angle_f(a1)
+    a2 = wrap_angle_f(a2)
+    diff = np.abs(a1 - a2)
+    return np.minimum(diff, 2 * np.pi - diff)
+
+
+def closest_angle(a1: Quantity, a2: Quantity, ref: Quantity) -> Quantity:
+    return closest_angle_f(a1.to_value(u.rad), a2.to_value(u.rad), ref.to_value(u.rad)) * u.rad
+
+
+def closest_angle_f(a1: float, a2: float, ref: float) -> float:
+    return a2 if angle_dist_f(a2, ref) < angle_dist_f(a1, ref) else a1
 
 
 # Rough estimate of the standard deviation based on the number of provided decimals

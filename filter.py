@@ -20,18 +20,18 @@ def do_filter(body: MinorPlanet):
         after = propagate(before, delta_time=dt)
         return after.to_vector()
 
-    points = MerweScaledSigmaPoints(6, alpha=.1, beta=2., kappa=-1)
-    ukf = UnscentedKalmanFilter(dim_x=6, dim_z=3, dt=None, hx=measurement_fn, fx=transition_fn, points=points)
+    points = MerweScaledSigmaPoints(9, alpha=.1, beta=2., kappa=-1)
+    ukf = UnscentedKalmanFilter(dim_x=9, dim_z=5, dt=None, hx=measurement_fn, fx=transition_fn, points=points)
 
     x0 = reverse_transform(obss[0], body.initial_state_hint).to_vector()
-    pp0 = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.5])
+    pp0 = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
     prev_epoch = obss[0].epoch
     ukf.x = x0
     ukf.P = pp0
 
     for i, obs in enumerate(obss[1:]):
-        ukf.Q = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
-        ukf.R = np.diag([0.001, 0.001, 0.001])
+        ukf.Q = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
+        ukf.R = np.diag([0.001, 0.001, 0.001, 0.001, 0.1])
         ukf.predict(dt=(obs.epoch - prev_epoch), before_epoch=prev_epoch)
         ukf.update(z=obs.to_vector(), epoch=obs.epoch, observatory=obs.observatory)
         state_estimate = MinorPlanetState.from_vector(ukf.x, body, obs.epoch)

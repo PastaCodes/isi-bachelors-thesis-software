@@ -6,7 +6,8 @@ import astropy.units as u
 from astropy.coordinates import CartesianRepresentation
 from astropy.units import Quantity
 
-from misc import safe_acos, cot, closest_angle, atan2pos
+from misc import safe_arccos, cot, closest_angle, arctan2pos
+
 
 SUN_GRAVITY = 39.4769264145 * u.au ** 3 / u.year ** 2  # Standard gravitational parameter μ of the Sun
 
@@ -26,9 +27,9 @@ def advance_mean_anomaly(before: Quantity, mean_motion: Quantity, delta_time: Qu
 def eccentric_anomaly_from_distance(distance: Quantity, semi_major_axis: Quantity, eccentricity: Quantity,
                                     mean_anomaly_hint: Quantity) -> Quantity:
     if mean_anomaly_hint < np.pi * u.rad:
-        return safe_acos((1 - distance / semi_major_axis) / eccentricity)
+        return safe_arccos((1 - distance / semi_major_axis) / eccentricity)
     else:
-        return 2 * np.pi * u.rad - safe_acos((1 - distance / semi_major_axis) / eccentricity)
+        return 2 * np.pi * u.rad - safe_arccos((1 - distance / semi_major_axis) / eccentricity)
 
 
 def distance_from_eccentric_anomaly(ee: Quantity, a: Quantity, e: Quantity) -> Quantity:
@@ -44,9 +45,9 @@ def eccentric_anomaly_from_mean_anomaly(mean_anomaly: Quantity, eccentricity: Qu
     e = eccentricity.value
     mm = mean_anomaly.to(u.rad).value
     def f(ee: float) -> float:
-        return ee - e * math.sin(ee) - mm
+        return ee - e * np.sin(ee) - mm
     def f_prime(ee: float) -> float:
-        return 1 - e * math.cos(ee)
+        return 1 - e * np.cos(ee)
     return spo.newton(f, mm, f_prime, tol=tol) * u.rad
 
 
@@ -64,7 +65,7 @@ def orbital_angles_from_position(position: CartesianRepresentation, true_anomaly
                              asc_long_hint)
     if asc_long < 0:
         asc_long = 0 * u.rad  # Don't wrap around! The real value must be non-negative.
-    lat_arg = atan2pos(z, np.sin(incl) * (np.cos(asc_long) * x + np.sin(asc_long) * y))
+    lat_arg = arctan2pos(z, np.sin(incl) * (np.cos(asc_long) * x + np.sin(asc_long) * y))
     peri_arg = lat_arg - true_anomaly
     return asc_long, peri_arg
 
