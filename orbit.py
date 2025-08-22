@@ -44,10 +44,13 @@ def eccentric_anomaly_from_mean_anomaly(mean_anomaly: Quantity, eccentricity: Qu
                                         tol: float = 1.48e-08) -> Quantity:
     e = eccentricity.value
     mm = mean_anomaly.to(u.rad).value
+
     def f(ee: float) -> float:
         return ee - e * np.sin(ee) - mm
+
     def f_prime(ee: float) -> float:
         return 1 - e * np.cos(ee)
+
     return spo.newton(f, mm, f_prime, tol=tol) * u.rad
 
 

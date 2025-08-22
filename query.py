@@ -8,7 +8,7 @@ from astropy.coordinates import EarthLocation, CartesianRepresentation
 from astropy.time import Time
 from astropy.units import Quantity
 
-from main import MinorPlanetEphemeris, MinorPlanet
+from classes import MinorPlanetEphemeris, MinorPlanet
 from parse import parse_observations
 
 
@@ -106,6 +106,55 @@ def query_observer_table(command: str, times: list[Time], location: EarthLocatio
         yield ra, dec, app_ra, app_dec, vv, th, phi
 
 
+def query_earth_location(location: EarthLocation, times: list[Time]) -> Iterable[CartesianRepresentation]:
+    tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
+    lon, lat, h = location.geodetic
+    url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
+          '?format=text' \
+          f'&COMMAND=%27g%3A{lon.to(u.deg).value}%2C{lat.to(u.deg).value}%2C{h.to(u.km).value}%40399%27' \
+          '&MAKE_EPHEM=YES' \
+          '&EPHEM_TYPE=VECTORS' \
+          '&CENTER=500%400' \
+          '&TLIST_TYPE=JD' \
+          '&TIME_TYPE=UT' \
+          '&VEC_TABLE=1' \
+          '&REF_SYSTEM=ICRF' \
+          '&REF_PLANE=FRAME' \
+          '&OUT_UNITS=AU-D' \
+          '&CSV_FORMAT=YES' \
+          '&TLIST=' + tlist
+
+    response = requests.get(url)
+    content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
+    for line in content.split('\n'):
+        columns = line.split(',')
+        yield CartesianRepresentation(float(columns[2]), float(columns[3]), float(columns[4]), u.au)
+
+
+def query_sun(times: list[Time]) -> Iterable[CartesianRepresentation]:
+    tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
+    url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
+          '?format=text' \
+          f'&COMMAND=10' \
+          '&MAKE_EPHEM=YES' \
+          '&EPHEM_TYPE=VECTORS' \
+          '&CENTER=500%400' \
+          '&TLIST_TYPE=JD' \
+          '&TIME_TYPE=UT' \
+          '&VEC_TABLE=1' \
+          '&REF_SYSTEM=ICRF' \
+          '&REF_PLANE=FRAME' \
+          '&OUT_UNITS=AU-D' \
+          '&CSV_FORMAT=YES' \
+          '&TLIST=' + tlist
+
+    response = requests.get(url)
+    content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
+    for line in content.split('\n'):
+        columns = line.split(',')
+        yield CartesianRepresentation(float(columns[2]), float(columns[3]), float(columns[4]), u.au)
+
+
 def query_ephemeris(body: MinorPlanet, max_batch_size: int = 30) -> dict[float, MinorPlanetEphemeris]:
     command = f'%27DES%3D{body.name.replace(' ', '%20')}%3B%27'
     all_observations = parse_observations(body)
@@ -115,15 +164,19 @@ def query_ephemeris(body: MinorPlanet, max_batch_size: int = 30) -> dict[float, 
         batches = itertools.batched(group, max_batch_size)
         for batch in batches:
             times = [o.epoch for o in batch]
-            for epoch, position, orb_data, obs_data in zip(times,
-                                                           query_vector_table(command, times),
-                                                           query_orbital_elements(command, times),
-                                                           query_observer_table(command, times, observatory.location)):
+            for epoch, target_pos, orb_data, obs_data, loc_pos, sun_pos in \
+                    zip(times,
+                        query_vector_table(command, times),
+                        query_orbital_elements(command, times),
+                        query_observer_table(command, times, observatory.location),
+                        query_earth_location(observatory.location, times),
+                        query_sun(times)):
                 a, e, i, n, asc_long, peri_arg, mm, v = orb_data
                 ra, dec, app_ra, app_dec, vv, th, phi = obs_data
                 t = epoch.to_value('decimalyear')
-                result[t] = MinorPlanetEphemeris(body, epoch, observatory.location, position, a, e, i, n,
-                                                 asc_long, peri_arg, mm, v, ra, dec, app_ra, app_dec, vv, th, phi)
+                result[t] = MinorPlanetEphemeris(body, epoch, target_pos, observatory.location, loc_pos, sun_pos,
+                                                 a, e, i, n, asc_long, peri_arg, mm, v, ra, dec, app_ra, app_dec,
+                                                 vv, th, phi)
 
             print(f'Batch completed. Current total: {len(result)} of {len(all_observations)}')
 

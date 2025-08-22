@@ -1,5 +1,5 @@
 TODO
-- benchmark propagation function
+- model variations in the orbital elements by their value and rate of change
 - derive orbit parameters (semi major axis and eccentricity) from tangent speed at t0
 - look for a root finding method that guarantees finding the closest root to an initial guess
 - alternatively: prove that only one phase root can exist under normal circumstances

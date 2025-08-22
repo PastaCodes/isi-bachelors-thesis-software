@@ -100,14 +100,40 @@ class MinorPlanetState:
 
 
 class MinorPlanetEphemeris:
-    def __init__(self, body: MinorPlanet, epoch: Time, observer_loc: EarthLocation, pos: CartesianRepresentation,
+    def __init__(self, target_body: MinorPlanet, epoch: Time, target_pos: CartesianRepresentation,
+                 observer_loc: EarthLocation, observer_pos: CartesianRepresentation, sun_pos: CartesianRepresentation,
                  a: Quantity, e: Quantity, i: Quantity, n: Quantity, asc_long: Quantity, peri_arg: Quantity,
                  mm: Quantity, v: Quantity, ra: Quantity, dec: Quantity, app_ra: Quantity, app_dec: Quantity,
                  vv: Quantity, th: Quantity, phi: Quantity):
-        self.body = body
+        """
+        :param target_body:
+        :param epoch:
+        :param target_pos: Geometric position of the target's barycenter
+        :param observer_loc: Earth location of the observer
+        :param observer_pos: Geometric position of the observer
+        :param sun_pos: Geometric position of the Sun's barycenter
+        :param a:
+        :param e:
+        :param i:
+        :param n:
+        :param asc_long:
+        :param peri_arg:
+        :param mm:
+        :param v:
+        :param ra: Astrometric right ascension
+        :param dec: Astrometric declination
+        :param app_ra: Refracted apparent right ascension
+        :param app_dec: Refracted apparent declination
+        :param vv:
+        :param th:
+        :param phi: True phase
+        """
+        self.target_body = target_body
         self.epoch = epoch
+        self.target_position = target_pos
         self.observer_location = observer_loc
-        self.position = pos
+        self.observer_position = observer_pos
+        self.sun_position = sun_pos
         self.semi_major_axis = a
         self.eccentricity = e
         self.inclination = i

@@ -1,7 +1,8 @@
 import astropy.units as u
 import matplotlib.pyplot as plt
 
-from main import output_transform, MinorPlanet
+from model import reverse_transform
+from classes import MinorPlanet
 from parse import parse_observations, parse_ephemeris
 
 
@@ -141,13 +142,14 @@ def error_on_observed_state() -> None:
     plt.show()
 '''
 
+
 def compare_observed_with_ephemeris(body: MinorPlanet) -> None:
     obss = parse_observations(body)
     ephs = list(parse_ephemeris(body).values())
     r = range(len(obss))
     # r = range(130)
 
-    est_pos = [output_transform(obss[i], ephs[i]).position.get_xyz().to(u.au).value for i in r]
+    est_pos = [reverse_transform(obss[i], ephs[i]).position.get_xyz().to(u.au).value for i in r]
     real_pos = [ephs[i].position.get_xyz().to(u.au).value for i in r]
 
     fig = plt.figure()

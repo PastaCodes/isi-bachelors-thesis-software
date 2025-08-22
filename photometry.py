@@ -19,14 +19,18 @@ def visual_magnitude_from_observed(observed_magnitude: float, band: str) -> floa
     return observed_magnitude + VISUAL_CORRECTION[band]
 
 
-def phi(phase: float, slope: float) -> Quantity:
+def phi(phase: Quantity, slope: Quantity) -> Quantity:
+    return phi_f(phase.to_value(u.rad), slope.value) * u.dimensionless_unscaled
+
+
+def phi_f(phase: float, slope: float) -> float:
     half_tan = np.tan(phase / 2)
     return (1 - slope) * np.exp(-3.33 * np.pow(half_tan, 0.63)) + slope * np.exp(-1.87 * np.pow(half_tan, 1.22))
 
 
 def magnitude_from_state(state: MinorPlanetState, phase: Quantity,
                          target_sun_dist: Quantity, target_observer_dist: Quantity) -> Quantity:
-    phi_correction = 2.5 * np.log10(phi(phase.to(u.rad).value, state.body.slope.value)) * u.mag
+    phi_correction = 2.5 * np.log10(phi(phase, state.body.slope)) * u.mag
     reduced_mag = state.body.absolute_magnitude - phi_correction
     return reduced_mag + 5 * np.log10(target_sun_dist.to(u.au).value * target_observer_dist.to(u.au).value) * u.mag
 

@@ -28,10 +28,13 @@ REAL_BETA = get_beta(REAL_ECCENTRICITY)
 
 def real_orbit(t: float) -> np.ndarray:
     mean_anom = wrap_angle_f(REAL_MEAN_MOTION * (t - REAL_TIME_OFFSET))
+
     def f(ee: float) -> float:
         return ee - REAL_ECCENTRICITY * np.sin(ee) - mean_anom
+
     def f_prime(ee: float) -> float:
         return 1 - REAL_ECCENTRICITY * np.cos(ee)
+
     ecc_anom = sp.optimize.newton(f, mean_anom, f_prime)
     true_anom = ecc_anom + 2 * np.atan(REAL_BETA * np.sin(ecc_anom) / (1 - REAL_BETA * np.cos(ecc_anom)))
     dist = REAL_SEMI_MAJOR_AXIS * (1 - REAL_ECCENTRICITY * np.cos(ecc_anom))
@@ -89,10 +92,13 @@ def main() -> None:
         ee_before = arctan2pos_f(np.sqrt(1 - e * e) * sin_v_before, e + cos_v_before)
         mm_before = ee_before - e * np.sin(ee_before)
         mm_after = wrap_angle_f(mm_before + n * dt)
+
         def f(ee: float) -> float:
             return ee - e * np.sin(ee) - mm_before
+
         def f_prime(ee: float) -> float:
             return 1 - e * np.cos(ee)
+
         ee_after = sp.optimize.newton(f, mm_after, f_prime)
         v_after = ee_after + 2 * np.atan(b * np.sin(ee_after) / (1 - b * np.cos(ee_after)))
         r_after = a * (1 - e * np.cos(ee_after))

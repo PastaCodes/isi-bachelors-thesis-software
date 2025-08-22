@@ -6,7 +6,7 @@ from astropy.time import Time
 from fortranformat import FortranRecordReader
 
 from classes import MinorPlanetObservation, MinorPlanet, MinorPlanetEphemeris, Observatory
-from misc import location_from_parallax, decimal_day_date_to_time
+from misc import location_from_parallax, decimal_day_date_to_time, PROJECT_ROOT
 from photometry import visual_magnitude_from_observed
 
 
@@ -18,7 +18,7 @@ observatories: dict[str, Observatory] = {}
 
 
 def load_observatories():
-    with open(observatories_file_path, 'rt', encoding='utf-8') as file:
+    with open(PROJECT_ROOT + observatories_file_path, 'rt', encoding='utf-8') as file:
         for line in file.readlines()[1:]:
             if not line[6]:  # No location data; likely not on Earth
                 continue
@@ -55,7 +55,7 @@ def parse_observations(body: MinorPlanet,
     if not observatories:
         load_observatories()
     result: list[MinorPlanetObservation] = []
-    with open(body.observations_filepath, 'rt', encoding='utf-8') as file:
+    with open(PROJECT_ROOT + body.observations_filepath, 'rt', encoding='utf-8') as file:
         prev_time = None
         for line in file.readlines():
             if accept_methods is not None:
@@ -74,16 +74,18 @@ def parse_observations(body: MinorPlanet,
     return result
 
 
-def parse_ephemeris(obj: MinorPlanet) -> dict[float, MinorPlanetEphemeris]:
+def parse_ephemeris(body: MinorPlanet) -> dict[float, MinorPlanetEphemeris]:
     data: dict[float, MinorPlanetEphemeris] = {}
-    with open(obj.ephemeris_filepath, 'rt', encoding='utf-8') as file:
+    with open(PROJECT_ROOT + body.ephemeris_filepath, 'rt', encoding='utf-8') as file:
         for line in file.readlines():
-            t, x, y, z, lon, lat, h, a, e, i, n, asc_long, peri_arg, mm, v, ra, dec, app_ra, app_dec, vv, th, phi = \
-                line.split(' ')
+            (t, bx, by, bz, lon, lat, h, ox, oy, oz, sx, sy, sz, a, e, i, n, asc_long, peri_arg, mm, v,
+             ra, dec, app_ra, app_dec, vv, th, phi) = line.split(' ')
             time = Time(t, format='decimalyear', scale='utc')
-            obs_location = EarthLocation.from_geodetic(float(lon) * u.rad, float(lat) * u.rad, float(z) * u.m)
-            position = CartesianRepresentation(float(x), float(y), float(z), u.au)
-            data[float(t)] = MinorPlanetEphemeris(obj, time, obs_location, position, float(a) * u.au,
+            body_pos = CartesianRepresentation(float(bx), float(by), float(bz), u.au)
+            obs_loc = EarthLocation.from_geodetic(float(lon) * u.rad, float(lat) * u.rad, float(h) * u.m)
+            obs_pos = CartesianRepresentation(float(ox), float(oy), float(oz), u.au)
+            sun_pos = CartesianRepresentation(float(sx), float(sy), float(sz), u.au)
+            data[float(t)] = MinorPlanetEphemeris(body, time, body_pos, obs_loc, obs_pos, sun_pos, float(a) * u.au,
                                                   float(e) * u.dimensionless_unscaled, float(i) * u.rad,
                                                   float(n) * u.rad / u.year, float(asc_long) * u.rad,
                                                   float(peri_arg) * u.rad, float(mm) * u.rad, float(v) * u.rad,
@@ -93,31 +95,34 @@ def parse_ephemeris(obj: MinorPlanet) -> dict[float, MinorPlanetEphemeris]:
     return data
 
 
-def dump_ephemeris(ephs: dict[float, MinorPlanetEphemeris], file_path: str) -> None:
-    with open(file_path, 'wt', encoding='utf-8') as file:
+def dump_ephemeris(ephs: dict[float, MinorPlanetEphemeris], body: MinorPlanet) -> None:
+    with open(PROJECT_ROOT + body.ephemeris_filepath, 'wt', encoding='utf-8') as file:
         lines = []
         for t, eph in sorted(ephs.items()):
-            x, y, z = eph.position.get_xyz().to(u.au).value
+            bx, by, bz = eph.body_position.get_xyz().to_value(u.au)
             lon, lat, h = eph.observer_location.geodetic
-            lon = lon.to(u.rad).value
-            lat = lat.to(u.rad).value
+            lon = lon.to_value(u.rad)
+            lat = lat.to_value(u.rad)
             h = h.to(u.m).value
-            a = eph.semi_major_axis.to(u.au).value
+            ox, oy, oz = eph.observer_position.get_xyz().to_value(u.au)
+            sx, sy, sz = eph.sun_position.get_xyz().to_value(u.au)
+            a = eph.semi_major_axis.to_value(u.au)
             e = eph.eccentricity.value
-            i = eph.inclination.to(u.rad).value
-            n = eph.mean_motion.to(u.rad / u.year).value
-            asc_long = eph.ascending_longitude.to(u.rad).value
-            peri_arg = eph.periapsis_argument.to(u.rad).value
-            mm = eph.mean_anomaly.to(u.rad).value
-            v = eph.true_anomaly.to(u.rad).value
-            ra = eph.right_ascension.to(u.rad).value
-            dec = eph.declination.to(u.rad).value
-            app_ra = eph.apparent_right_ascension.to(u.rad).value
-            app_dec = eph.apparent_declination.to(u.rad).value
-            vv = eph.visual_magnitude.to(u.mag).value
-            th = eph.elongation.to(u.rad).value
-            phi = eph.phase.to(u.rad).value
-            lines.append(f'{t} {x} {y} {z} {lon} {lat} {h} {a} {e} {i} {n} {asc_long} {peri_arg} {mm} {v} '
-                         f'{ra:.6f} {dec:.6f} {app_ra:.6f} {app_dec:.6f} {vv} {th} {phi}\n')
+            i = eph.inclination.to_value(u.rad)
+            n = eph.mean_motion.to_value(u.rad / u.year)
+            asc_long = eph.ascending_longitude.to_value(u.rad)
+            peri_arg = eph.periapsis_argument.to_value(u.rad)
+            mm = eph.mean_anomaly.to_value(u.rad)
+            v = eph.true_anomaly.to_value(u.rad)
+            ra = eph.right_ascension.to_value(u.rad)
+            dec = eph.declination.to_value(u.rad)
+            app_ra = eph.apparent_right_ascension.to_value(u.rad)
+            app_dec = eph.apparent_declination.to_value(u.rad)
+            vv = eph.visual_magnitude.to_value(u.mag)
+            th = eph.elongation.to_value(u.rad)
+            phi = eph.phase.to_value(u.rad)
+            lines.append(f'{t} {bx} {by} {bz} {lon} {lat} {h} {ox} {oy} {oz} {sx} {sy} {sz} {a} {e} {i} {n} '
+                         f'{asc_long} {peri_arg} {mm} {v} {ra:.6f} {dec:.6f} {app_ra:.6f} {app_dec:.6f} '
+                         f'{vv} {th} {phi}\n')
 
         file.writelines(lines)
