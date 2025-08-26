@@ -4,24 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Create simpler simulations">
-      <change afterPath="$PROJECT_DIR$/simulation/ideal_model_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Complete ideal simulations">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TODO.txt" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes.py" beforeDir="false" afterPath="$PROJECT_DIR$/classes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/2010_rf12_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2010_rf12_eph.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/2024_yr4_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2024_yr4_eph.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/Bennu_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/Bennu_eph.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/misc.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/orbit.py" beforeDir="false" afterPath="$PROJECT_DIR$/orbit.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/photometry.py" beforeDir="false" afterPath="$PROJECT_DIR$/photometry.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/circle_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/full_orbit_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/3d_elliptical_orbit_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visualize.py" beforeDir="false" afterPath="$PROJECT_DIR$/visualize.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simulation/ideal_model_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/ideal_model_test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,6 +49,7 @@
   "keyToString": {
     "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.2d_circular_orbit_test (1).executor": "Run",
     "Python.3d_elliptical_orbit_test.executor": "Run",
     "Python.circle_ang_test (1).executor": "Run",
     "Python.circle_cart_test.executor": "Run",
@@ -91,8 +78,8 @@
       <recent name="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.ideal_model_test">
-    <configuration name="2d_circular_orbit_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Python.ideal_model_test (1)">
+    <configuration name="2d_circular_orbit_test (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="isi-bachelors-thesis-software" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -101,11 +88,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tmp" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/simulation" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\tmp\2d_circular_orbit_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -128,28 +115,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\tmp\2d_circular_orbit_test.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="3d_elliptical_orbit_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="isi-bachelors-thesis-software" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tmp" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\tmp\3d_elliptical_orbit_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -172,6 +137,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tmp/full_ephemeris_test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="ideal_model_test (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="isi-bachelors-thesis-software" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/simulation" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/simulation/ideal_model_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -226,11 +213,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.ideal_model_test (1)" />
+        <item itemvalue="Python.2d_circular_orbit_test (1)" />
         <item itemvalue="Python.ideal_model_test" />
         <item itemvalue="Python.main" />
         <item itemvalue="Python.full_ephemeris_test" />
-        <item itemvalue="Python.3d_elliptical_orbit_test" />
-        <item itemvalue="Python.2d_circular_orbit_test" />
       </list>
     </recent_temporary>
   </component>
@@ -291,7 +278,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755679075199</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Complete ideal simulations">
+      <option name="closed" value="true" />
+      <created>1755891664576</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1755891664576</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -314,6 +309,7 @@
     <MESSAGE value="First untuned application of UKF" />
     <MESSAGE value="Remove variable name conflicts" />
     <MESSAGE value="Create simpler simulations" />
-    <option name="LAST_COMMIT_MESSAGE" value="Create simpler simulations" />
+    <MESSAGE value="Complete ideal simulations" />
+    <option name="LAST_COMMIT_MESSAGE" value="Complete ideal simulations" />
   </component>
 </project>

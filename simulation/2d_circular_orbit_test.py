@@ -146,5 +146,90 @@ def complex_repr() -> None:
     plt.show()
 
 
+def compare() -> None:
+
+    def measurement_fn(state_vec: np.ndarray) -> np.ndarray:
+        return state_vec  # The th,r coordinates are measured directly
+
+    def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
+        th_before, r = before_vec
+        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        return np.array([th_after, r])
+
+    points = MerweScaledSigmaPoints(2, alpha=1e-3, beta=2, kappa=1)
+    ukf = UnscentedKalmanFilter(dim_x=2, dim_z=2, dt=None, hx=measurement_fn, fx=transition_fn, points=points)
+
+    x0 = OBSS[0]
+    pp0 = REAL_MEAS_NOISE_COV  # Since measurement is identity
+    prev_t = TIMES[0]
+    ukf.x = x0
+    ukf.P = pp0
+    ang_vel_guess = REAL_ANG_VEL
+
+    direct_estimates = [x0]
+    for t, obs in zip(TIMES[1:], OBSS[1:]):
+        ukf.Q = np.diag([0, 0])
+        ukf.R = REAL_MEAS_NOISE_COV
+        ukf.predict(dt=(t - prev_t), ang_vel=ang_vel_guess)
+        ukf.update(z=obs)
+        direct_estimates.append(ukf.x)
+        prev_t = t
+
+    def convert_before(obs_vec: np.ndarray) -> np.ndarray:
+        th, r = obs_vec
+        cos = np.cos(th)
+        sin = np.sin(th)
+        return np.array([cos, sin, r])
+
+    def convert_after(est_vec: np.ndarray) -> np.ndarray:
+        cos, sin, r = est_vec
+        th = arctan2pos_f(sin, cos)
+        return np.array([th, r])
+
+    converted_obss = [convert_before(obs) for obs in OBSS]
+
+    def measurement_fn(state_vec: np.ndarray) -> np.ndarray:
+        return state_vec
+
+    def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
+        cos_before, sin_before, r = before_vec
+        th_before = arctan2pos_f(sin_before, cos_before)
+        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        cos_after = np.cos(th_after)
+        sin_after = np.sin(th_after)
+        return np.array([cos_after, sin_after, r])
+
+    points = MerweScaledSigmaPoints(3, alpha=1e-3, beta=2, kappa=1)
+    ukf = UnscentedKalmanFilter(dim_x=3, dim_z=2, dt=None, hx=measurement_fn, fx=transition_fn, points=points)
+
+    x0 = convert_before(OBSS[0])
+    pp0 = np.diag([0.2, 0.2, 0.2])  # Technically should be a transformation of REAL_MEAS_NOISE_COV
+    prev_t = TIMES[0]
+    ukf.x = x0
+    ukf.P = pp0
+    ang_vel_guess = REAL_ANG_VEL
+
+    complex_estimates = []
+    for t, obs in zip(TIMES[1:], converted_obss[1:]):
+        ukf.Q = np.diag([0, 0, 0])
+        ukf.R = np.diag([0.2, 0.2, 0.2])  # Technically should be a transformation of REAL_MEAS_NOISE_COV
+        ukf.predict(dt=(t - prev_t), ang_vel=ang_vel_guess)
+        ukf.update(z=obs)
+        complex_estimates.append(ukf.x)
+        prev_t = t
+
+    converted = [OBSS[0]] + [convert_after(est) for est in complex_estimates]
+
+    import matplotlib.pyplot as plt
+    plt.xlabel('tempo')
+    plt.ylabel('angolo')
+    plt.scatter(TIMES, [tr[0] for tr in TRUTH], marker='o', c='g', s=15, label='Valore reale')
+    plt.scatter(TIMES, [obs[0] for obs in OBSS], marker='+', c='r', label='Misurazione')
+    plt.scatter(TIMES, [est[0] for est in direct_estimates], marker='^', c='c', s=15, label='Stima diretta')
+    plt.scatter(TIMES, [est[0] for est in converted], marker='s', c='b', s=15, label='Stima indiretta')
+    plt.legend(loc='upper right')
+    plt.show()
+
+
 if __name__ == '__main__':
-    complex_repr()
+    compare()

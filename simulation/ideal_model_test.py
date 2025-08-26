@@ -152,14 +152,14 @@ def initial_state(obs_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray,
     cos_i, sin_i = angle_components_f(i)
     cos_o, sin_o = angle_components_f(o)
     cos_w, sin_w = angle_components_f(w)
-    return np.array([r, cos_m, sin_m, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g])
+    return np.array([cos_m, sin_m, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g])
 
 
 def finalize(state_vec: np.ndarray) -> np.ndarray:
     """
-    [r, *M, a, e, *i, *Ω, *ω, n, H, G] --> [x, y, z]
+    [*M, a, e, *i, *Ω, *ω, n, H, G] --> [x, y, z]
     """
-    r, cos_m, sin_m, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g = state_vec
+    cos_m, sin_m, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g = state_vec
     m = arctan2pos_f(sin_m, cos_m)
     ee = sp.optimize.newton(func=(lambda _ee: _ee - e * np.sin(_ee) - m),
                             fprime=(lambda _ee: 1.0 - e * np.cos(_ee)),
@@ -169,6 +169,7 @@ def finalize(state_vec: np.ndarray) -> np.ndarray:
     cos_v, sin_v = angle_components_f(true_anom)
     cos_u = cos_v * cos_w - sin_v * sin_w
     sin_u = sin_v * cos_w + cos_v * sin_w
+    r = a * (1.0 - e * np.cos(ee))
     tgt_pos = r * np.array([cos_o * cos_u - sin_o * sin_u * cos_i,
                             sin_o * cos_u + cos_o * sin_u * cos_i,
                             sin_u * sin_i])
@@ -177,7 +178,7 @@ def finalize(state_vec: np.ndarray) -> np.ndarray:
 
 def measure(state_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray) -> np.ndarray:
     """
-    [r, *M, a, e, *i, *Ω, *ω, n, H, G]_k --> [*α, *δ, V]_k
+    [*M, a, e, *i, *Ω, *ω, n, H, G]_k --> [*α, *δ, V]_k
     """
     tgt_pos = finalize(state_vec)
     h, g = state_vec[-2:]
@@ -198,17 +199,16 @@ def measure(state_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray) -> 
 
 def propagate(before_vec: np.ndarray, dt: float) -> np.ndarray:
     """
-    [r, *M, a, e, *i, *Ω, *ω, n, H, G]_k-1 --> [r, *M, a, e, *i, *Ω, *ω, n, H, G]_k
+    [*M, a, e, *i, *Ω, *ω, n, H, G]_k-1 --> [*M, a, e, *i, *Ω, *ω, n, H, G]_k
     """
-    r_before, cos_m_before, sin_m_before, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g = before_vec
+    cos_m_before, sin_m_before, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g = before_vec
     m_before = arctan2pos_f(sin_m_before, cos_m_before)
     m_after = wrap_angle_f(m_before + n * dt)
     ee_after = sp.optimize.newton(func=(lambda _ee: _ee - e * np.sin(_ee) - m_after),
                                   fprime=(lambda _ee: 1.0 - e * np.cos(_ee)),
                                   x0=m_after)
-    r_after = a * (1.0 - e * np.cos(ee_after))
     cos_m_after, sin_m_after = angle_components_f(m_after)
-    return np.array([r_after, cos_m_after, sin_m_after, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g])
+    return np.array([cos_m_after, sin_m_after, a, e, cos_i, sin_i, cos_o, sin_o, cos_w, sin_w, n, h, g])
 
 
 def main() -> None:
@@ -236,11 +236,11 @@ def main() -> None:
 
     naive = [reverse_transform(obs, o, s, h, g) for obs, o, s in zip(prepared, obs_pos, sun_pos)]
 
-    points = MerweScaledSigmaPoints(14, alpha=1e-3, beta=2, kappa=1)
-    ukf = UnscentedKalmanFilter(dim_x=14, dim_z=5, dt=None, hx=measure, fx=propagate, points=points)
+    points = MerweScaledSigmaPoints(13, alpha=1e-3, beta=2, kappa=1)
+    ukf = UnscentedKalmanFilter(dim_x=13, dim_z=5, dt=None, hx=measure, fx=propagate, points=points)
 
     x0 = initial_state(prepared[0], obs_pos[0], sun_pos[0], a, e, i, o, w, n, h, g, m_hint=0.0)
-    pp0 = np.diag([0.5, 0.5, 0.5, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
+    pp0 = np.diag([0.5, 0.5, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
     prev_t = times[0]
     ukf.x = x0
     ukf.P = pp0
@@ -248,7 +248,7 @@ def main() -> None:
     estimates = [finalize(x0)]
     for t, obs, o, s in zip(times[1:], prepared[1:], obs_pos[1:], sun_pos[1:]):
         dt = t - prev_t
-        ukf.Q = 0.0000001 * np.eye(14)
+        ukf.Q = 0.0000001 * np.eye(13)
         cos_ra, sin_ra, cos_dec, sin_dec, v = obs
         ukf.R = np.block([[sin_ra * sin_ra / (k * cos_dec * cos_dec),
                            -sin_ra * cos_ra / (k * cos_dec * cos_dec),
