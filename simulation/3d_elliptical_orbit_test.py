@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
 
-from misc import wrap_angle_f, arctan2pos_f
+from misc import wrap_angle, arctan2pos
 
 
 REAL_SEMI_MAJOR_AXIS = 2.516
@@ -27,7 +27,7 @@ REAL_BETA = get_beta(REAL_ECCENTRICITY)
 
 
 def real_orbit(t: float) -> np.ndarray:
-    mean_anom = wrap_angle_f(REAL_MEAN_MOTION * (t - REAL_TIME_OFFSET))
+    mean_anom = wrap_angle(REAL_MEAN_MOTION * (t - REAL_TIME_OFFSET))
 
     def f(ee: float) -> float:
         return ee - REAL_ECCENTRICITY * np.sin(ee) - mean_anom
@@ -54,7 +54,7 @@ def disturb(obs: np.ndarray, cov: np.ndarray, rng: np.random.Generator) -> np.nd
     noise = rng.multivariate_normal(np.zeros_like(obs), cov)
     v, r = obs
     v_noise, r_noise = noise
-    v_disturbed = wrap_angle_f(v + v_noise)
+    v_disturbed = wrap_angle(v + v_noise)
     r_disturbed = np.maximum(r + r_noise, 0)
     return np.array([v_disturbed, r_disturbed])
 
@@ -79,7 +79,7 @@ def main() -> None:
 
     def convert_after(est_vec: np.ndarray) -> np.ndarray:
         cos_v, sin_v, r = est_vec
-        v = arctan2pos_f(sin_v, cos_v)
+        v = arctan2pos(sin_v, cos_v)
         return np.array([v, r])
 
     converted_obss = [convert_before(obs) for obs in OBSS]
@@ -89,9 +89,9 @@ def main() -> None:
 
     def transition_fn(before_vec: np.ndarray, dt: float) -> np.ndarray:
         cos_v_before, sin_v_before, r_before = before_vec
-        ee_before = arctan2pos_f(np.sqrt(1 - e * e) * sin_v_before, e + cos_v_before)
+        ee_before = arctan2pos(np.sqrt(1 - e * e) * sin_v_before, e + cos_v_before)
         mm_before = ee_before - e * np.sin(ee_before)
-        mm_after = wrap_angle_f(mm_before + n * dt)
+        mm_after = wrap_angle(mm_before + n * dt)
 
         def f(ee: float) -> float:
             return ee - e * np.sin(ee) - mm_before

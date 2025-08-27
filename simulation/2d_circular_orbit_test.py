@@ -1,7 +1,7 @@
 import numpy as np
 from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
 
-from misc import wrap_angle_f, arctan2pos_f
+from misc import wrap_angle, arctan2pos
 
 '''
 Suppose we want to monitor the polar coordinates (th and r) of a body in circular motion
@@ -20,7 +20,7 @@ REAL_MEAS_NOISE_COV = np.diag([0.1, 0.05])  # R
 
 
 def circle_orbit(t: float, time_offset: float, ang_vel: float, r: float) -> np.ndarray:
-    th = wrap_angle_f(ang_vel * (t - time_offset))
+    th = wrap_angle(ang_vel * (t - time_offset))
     return np.array([th, r])
 
 
@@ -37,7 +37,7 @@ def disturb(obs: np.ndarray, cov: np.ndarray, rng: np.random.Generator) -> np.nd
     noise = rng.multivariate_normal(np.zeros_like(obs), cov)
     th, r = obs
     th_noise, r_noise = noise
-    th_disturbed = wrap_angle_f(th + th_noise)
+    th_disturbed = wrap_angle(th + th_noise)
     r_disturbed = np.maximum(r + r_noise, 0)
     return np.array([th_disturbed, r_disturbed])
 
@@ -55,7 +55,7 @@ def direct() -> None:
 
     def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
         th_before, r = before_vec
-        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        th_after = wrap_angle(th_before + ang_vel * dt)
         return np.array([th_after, r])
 
     points = MerweScaledSigmaPoints(2, alpha=1e-3, beta=2, kappa=1)
@@ -98,7 +98,7 @@ def complex_repr() -> None:
 
     def convert_after(est_vec: np.ndarray) -> np.ndarray:
         cos, sin, r = est_vec
-        th = arctan2pos_f(sin, cos)
+        th = arctan2pos(sin, cos)
         return np.array([th, r])
 
     converted_obss = [convert_before(obs) for obs in OBSS]
@@ -108,8 +108,8 @@ def complex_repr() -> None:
 
     def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
         cos_before, sin_before, r = before_vec
-        th_before = arctan2pos_f(sin_before, cos_before)
-        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        th_before = arctan2pos(sin_before, cos_before)
+        th_after = wrap_angle(th_before + ang_vel * dt)
         cos_after = np.cos(th_after)
         sin_after = np.sin(th_after)
         return np.array([cos_after, sin_after, r])
@@ -153,7 +153,7 @@ def compare() -> None:
 
     def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
         th_before, r = before_vec
-        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        th_after = wrap_angle(th_before + ang_vel * dt)
         return np.array([th_after, r])
 
     points = MerweScaledSigmaPoints(2, alpha=1e-3, beta=2, kappa=1)
@@ -183,7 +183,7 @@ def compare() -> None:
 
     def convert_after(est_vec: np.ndarray) -> np.ndarray:
         cos, sin, r = est_vec
-        th = arctan2pos_f(sin, cos)
+        th = arctan2pos(sin, cos)
         return np.array([th, r])
 
     converted_obss = [convert_before(obs) for obs in OBSS]
@@ -193,8 +193,8 @@ def compare() -> None:
 
     def transition_fn(before_vec: np.ndarray, dt: float, ang_vel: float) -> np.ndarray:
         cos_before, sin_before, r = before_vec
-        th_before = arctan2pos_f(sin_before, cos_before)
-        th_after = wrap_angle_f(th_before + ang_vel * dt)
+        th_before = arctan2pos(sin_before, cos_before)
+        th_after = wrap_angle(th_before + ang_vel * dt)
         cos_after = np.cos(th_after)
         sin_after = np.sin(th_after)
         return np.array([cos_after, sin_after, r])

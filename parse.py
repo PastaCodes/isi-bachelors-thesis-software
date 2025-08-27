@@ -1,13 +1,10 @@
 from typing import Final, Collection
 
-import astropy.units as u
-from astropy.coordinates import EarthLocation, CartesianRepresentation
-from astropy.time import Time
+import numpy as np
 from fortranformat import FortranRecordReader
 
-from classes import MinorPlanetObservation, MinorPlanet, MinorPlanetEphemeris, Observatory
+from classes import MinorPlanetObservation, MinorPlanet, Observatory
 from misc import location_from_parallax, decimal_day_date_to_time, PROJECT_ROOT
-from photometry import visual_magnitude_from_observed
 
 
 # As described in https://www.minorplanetcenter.net/iau/lists/ObsCodesF.html
@@ -22,8 +19,8 @@ def load_observatories():
         for line in file.readlines()[1:]:
             if not line[6]:  # No location data; likely not on Earth
                 continue
-            code, lon, p1, p2, name = observatory_reader.read(line)
-            loc = location_from_parallax(float(lon) * u.deg, float(p1) * u.earthRad, float(p2) * u.earthRad)
+            code, lon_deg, p1, p2, name = observatory_reader.read(line)
+            loc = location_from_parallax(float(lon_deg), float(p1), float(p2))
             observatories[code] = Observatory(code, name, loc)
 
 
@@ -36,18 +33,12 @@ observation_reader = FortranRecordReader(OBSERVATION_FORMAT)
 def parse_observation_line(body: MinorPlanet, line: str) -> MinorPlanetObservation:
     packed_num, packed_desig, discov_ast, note1, note2, year, month, day_dec, ra_hour, ra_minute, ra_second, \
         decl_degree, decl_minute, decl_second, mag, band, observatory_code = observation_reader.read(line)
-    visual_mag = visual_magnitude_from_observed(float(mag), band)
-    return MinorPlanetObservation(target_body=body,
-                                  epoch=decimal_day_date_to_time(year, month, day_dec),
-                                  # epoch_var=(sd(line[27:32]) / 365.25),
-                                  observatory=observatories[observatory_code],
-                                  ra=(ra_hour + ra_minute / 60 + ra_second / 3600) * u.hourangle,
-                                  # ra_var=sd(line[42:44]),
-                                  dec=(decl_degree + decl_minute / 60 + decl_second / 3600) * u.deg,
-                                  # dec_var=sd(line[55:56]),
-                                  visual_mag=visual_mag * u.mag,
-                                  # mag_var=sd(line[69:70])
-                                  )
+    observatory = observatories[observatory_code]
+    epoch = decimal_day_date_to_time(year, month, day_dec, observatory.location)
+    return MinorPlanetObservation.with_band(target_body=body, epoch=epoch, observatory=observatory,
+                                            ra=np.radians(15 * ra_hour + ra_minute / 4 + ra_second / 240),
+                                            dec=np.radians(decl_degree + decl_minute / 60 + decl_second / 3600),
+                                            observed_magnitude=mag, band=band)
 
 
 def parse_observations(body: MinorPlanet,
@@ -74,6 +65,7 @@ def parse_observations(body: MinorPlanet,
     return result
 
 
+'''
 def parse_ephemeris(body: MinorPlanet) -> dict[float, MinorPlanetEphemeris]:
     data: dict[float, MinorPlanetEphemeris] = {}
     with open(PROJECT_ROOT + body.ephemeris_filepath, 'rt', encoding='utf-8') as file:
@@ -126,3 +118,4 @@ def dump_ephemeris(ephs: dict[float, MinorPlanetEphemeris], body: MinorPlanet) -
                          f'{vv} {th} {phi}\n')
 
         file.writelines(lines)
+'''

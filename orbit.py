@@ -1,84 +1,68 @@
 import math
 
 import numpy as np
-import scipy.optimize as spo
-import astropy.units as u
-from astropy.coordinates import CartesianRepresentation
-from astropy.units import Quantity
+import scipy as sp
 
-from misc import safe_arccos, cot, closest_angle, arctan2pos
+from misc import safe_arccos, cot, closest_angle, arctan2pos, angle_components_sum, wrap_angle
 
 
-SUN_GRAVITY = 39.4769264145 * u.au ** 3 / u.year ** 2  # Standard gravitational parameter μ of the Sun
+SUN_GRAVITY = 2.959122083E-4  # Standard gravitational parameter μ of the Sun in AU^3/day^2, TDB compatible
 
 
-def get_mean_motion(a: Quantity) -> Quantity:
-    return np.sqrt(SUN_GRAVITY / a ** 3) * u.rad
+def get_mean_motion(a: float) -> float:
+    return np.sqrt(SUN_GRAVITY / a ** 3)
 
 
-def compute_beta(e: Quantity) -> Quantity:
+def compute_beta(e: float) -> float:
     return e / (1 + np.sqrt(1 - e * e))
 
 
-def advance_mean_anomaly(before: Quantity, mean_motion: Quantity, delta_time: Quantity) -> Quantity:
-    return math.fmod((before + mean_motion * delta_time).to(u.rad).value, 2 * np.pi) * before.unit
+def advance_mean_anomaly(before: float, n: float, dt: float) -> float:
+    return wrap_angle(before + n * dt)
 
 
-def eccentric_anomaly_from_distance(distance: Quantity, semi_major_axis: Quantity, eccentricity: Quantity,
-                                    mean_anomaly_hint: Quantity) -> Quantity:
-    if mean_anomaly_hint < np.pi * u.rad:
-        return safe_arccos((1 - distance / semi_major_axis) / eccentricity)
+def eccentric_anomaly_from_distance(r: float, a: float, e: float, mm_hint: float) -> float:
+    if mm_hint < np.pi:
+        return safe_arccos((1.0 - r / a) / e)
     else:
-        return 2 * np.pi * u.rad - safe_arccos((1 - distance / semi_major_axis) / eccentricity)
+        return 2.0 * np.pi - safe_arccos((1.0 - r / a) / e)
 
 
-def distance_from_eccentric_anomaly(ee: Quantity, a: Quantity, e: Quantity) -> Quantity:
+def distance_from_eccentric_anomaly(ee: float, a: float, e: float) -> float:
     return a * (1 - e * np.cos(ee))
 
 
-def mean_anomaly_from_eccentric_anomaly(eccentric_anomaly: Quantity, eccentricity: Quantity) -> Quantity:
-    return eccentric_anomaly - eccentricity * np.sin(eccentric_anomaly) * u.rad
+def mean_anomaly_from_eccentric_anomaly(ee: float, e: float) -> float:
+    return ee - e * np.sin(ee)
 
 
-def eccentric_anomaly_from_mean_anomaly(mean_anomaly: Quantity, eccentricity: Quantity,
-                                        tol: float = 1.48e-08) -> Quantity:
-    e = eccentricity.value
-    mm = mean_anomaly.to(u.rad).value
-
-    def f(ee: float) -> float:
-        return ee - e * np.sin(ee) - mm
-
-    def f_prime(ee: float) -> float:
-        return 1 - e * np.cos(ee)
-
-    return spo.newton(f, mm, f_prime, tol=tol) * u.rad
+def eccentric_anomaly_from_mean_anomaly(mm: float, e: float, tol: float = 1.48e-08) -> float:
+    return sp.optimize.newton(func=(lambda _ee: _ee - e * np.sin(_ee) - mm),
+                              fprime=(lambda _ee: 1.0 - e * np.cos(_ee)),
+                              fprime2=(lambda _ee: e * np.sin(_ee)),
+                              x0=mm, tol=tol)
 
 
-def true_anomaly_from_eccentric_anomaly(ee: Quantity, beta: Quantity) -> Quantity:
+def true_anomaly_from_eccentric_anomaly(ee: float, e: float) -> float:
+    beta = compute_beta(e)
     return ee + 2 * np.atan(beta * np.sin(ee) / (1 - beta * np.cos(ee)))
 
 
-def orbital_angles_from_position(position: CartesianRepresentation, true_anomaly: Quantity, incl: Quantity,
-                                 asc_long_hint: Quantity) -> tuple[Quantity, Quantity]:
-    x, y, z = position.get_xyz()
-    asc_long_base = np.atan2(y, x)
-    asc_long_offset = np.asin(cot(incl) * z / np.sqrt(x * x + y * y))
-    asc_long = closest_angle(asc_long_base - asc_long_offset,
-                             asc_long_base + np.pi * u.rad + asc_long_offset,
-                             asc_long_hint)
-    if asc_long < 0:
-        asc_long = 0 * u.rad  # Don't wrap around! The real value must be non-negative.
-    lat_arg = arctan2pos(z, np.sin(incl) * (np.cos(asc_long) * x + np.sin(asc_long) * y))
-    peri_arg = lat_arg - true_anomaly
-    return asc_long, peri_arg
+def orbital_angles_from_position(pos: np.ndarray, v: float, i: float,
+                                 om_hint: float) -> tuple[float, float]:
+    x, y, z = pos
+    om_base = np.atan2(y, x)
+    om_offset = np.asin(cot(i) * z / np.sqrt(x * x + y * y))
+    om = closest_angle(om_base - om_offset, om_base + np.pi + om_offset, om_hint)
+    u = arctan2pos(z, np.sin(i) * (np.cos(om) * x + np.sin(om) * y))
+    w = u - v
+    return om, w
 
 
-def position_from_orbital_angles(true_anomaly: Quantity, peri_arg: Quantity, asc_long: Quantity,
-                                 inclination: Quantity, distance: Quantity) -> CartesianRepresentation:
-    lat_arg = true_anomaly + peri_arg
-    from scipy.spatial.transform import Rotation
-    rotations = Rotation.from_euler('zxz', [asc_long.to(u.rad).value,
-                                            inclination.to(u.rad).value,
-                                            lat_arg.to(u.rad).value])
-    position = distance * rotations.apply(np.array([1, 0, 0]))
-    return CartesianRepresentation(position)
+def position_from_orbital_angle_components(cos_om: float, sin_om: float, cos_w: float, sin_w: float,
+                                           cos_v: float, sin_v: float, cos_i: float, sin_i: float,
+                                           r: float) -> np.ndarray:
+    cos_u, sin_u = angle_components_sum(cos_w, sin_w, cos_v, sin_v)
+    return r * np.array([cos_om * cos_u - sin_om * sin_u * cos_i,
+                         sin_om * cos_u + cos_om * sin_u * cos_i,
+                         sin_u * sin_i])
