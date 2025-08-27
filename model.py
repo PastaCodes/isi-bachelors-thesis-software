@@ -77,3 +77,33 @@ def propagate(before_vec: np.ndarray, dt: float) -> np.ndarray:
     mm_before = angle_from_components(cos_mm_before, sin_mm_before)
     mm_after = advance_mean_anomaly(mm_before, n, dt)
     return np.array([*angle_components(mm_after), a, e, cos_i, sin_i, cos_om, sin_om, cos_w, sin_w, n, hh, gg])
+
+
+def angle_components_autocovariance_matrix(cos: float, sin: float, var: float, adjust: float = 1E-12) -> np.ndarray:
+    mat = var * np.array([[sin * sin, -sin * cos],
+                          [-sin * cos, cos * cos]])
+    mat[0, 0] += adjust
+    mat[1, 1] += adjust
+    return mat
+
+
+def state_autocovariance_matrix(state_vec: np.ndarray, mm_var: float, a_var: float, e_var: float, i_var: float,
+                                om_var: float, w_var: float, n_var: float, hh_var: float, gg_var: float) -> np.ndarray:
+    cos_mm, sin_mm, _, _, cos_i, sin_i, cos_om, sin_om, cos_w, sin_w, _, _, _ = state_vec
+    qq = np.zeros((13, 13))
+    qq[0:2, 0:2] = angle_components_autocovariance_matrix(cos_mm, sin_mm, mm_var)
+    qq[2:4, 2:4] = np.diag([a_var, e_var])
+    qq[4:6, 4:6] = angle_components_autocovariance_matrix(cos_i, sin_i, i_var)
+    qq[6:8, 6:8] = angle_components_autocovariance_matrix(cos_om, sin_om, om_var)
+    qq[8:10, 8:10] = angle_components_autocovariance_matrix(cos_w, sin_w, w_var)
+    qq[10:13, 10:13] = np.diag([n_var, hh_var, gg_var])
+    return qq
+
+
+def measurement_autocovariance_matrix(obs_vec: np.ndarray, dir_var: float, vv_var: float) -> np.ndarray:
+    cos_ra, sin_ra, cos_dec, sin_dec, _ = obs_vec
+    rr = np.zeros((5, 5))
+    rr[0:2, 0:2] = angle_components_autocovariance_matrix(cos_ra / cos_dec, sin_ra / cos_dec, dir_var)
+    rr[2:4, 2:4] = angle_components_autocovariance_matrix(cos_dec, sin_dec, dir_var)
+    rr[4, 4] = vv_var
+    return rr

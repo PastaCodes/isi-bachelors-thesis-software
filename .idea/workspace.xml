@@ -4,20 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Removed r from state vector and added comparison plot for angle methods">
+    <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Mild rewrite">
+      <change afterPath="$PROJECT_DIR$/statistics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TODO.txt" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classes.py" beforeDir="false" afterPath="$PROJECT_DIR$/classes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/2010_rf12_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2010_rf12_eph.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/2024_yr4_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2024_yr4_eph.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Bennu_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/Bennu_eph.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/filter.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/misc.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/orbit.py" beforeDir="false" afterPath="$PROJECT_DIR$/orbit.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/parse.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/photometry.py" beforeDir="false" afterPath="$PROJECT_DIR$/photometry.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/2d_circular_orbit_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/simulation/3d_elliptical_orbit_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/3d_elliptical_orbit_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/simulation/ideal_model_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/ideal_model_test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -56,41 +55,41 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.2d_circular_orbit_test (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.3d_elliptical_orbit_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.circle_ang_test (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.circle_cart_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.circle_mixed_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.circle_test (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.circle_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.const_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.full_ephemeris_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.full_orbit_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ideal_model_test (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.ideal_model_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/marco/Desktop/laureanza/isi-bachelors-thesis-software/tmp&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;Errors&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.2d_circular_orbit_test (1).executor": "Run",
+    "Python.3d_elliptical_orbit_test.executor": "Run",
+    "Python.circle_ang_test (1).executor": "Run",
+    "Python.circle_cart_test.executor": "Run",
+    "Python.circle_mixed_test.executor": "Run",
+    "Python.circle_test (1).executor": "Run",
+    "Python.circle_test.executor": "Run",
+    "Python.const_test.executor": "Run",
+    "Python.full_ephemeris_test.executor": "Run",
+    "Python.full_orbit_test.executor": "Run",
+    "Python.ideal_model_test (1).executor": "Run",
+    "Python.ideal_model_test.executor": "Run",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/marco/Desktop/laureanza/isi-bachelors-thesis-software/tmp",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "Errors",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\tmp" />
       <recent name="C:\Users\marco\Desktop\laureanza\isi-bachelors-thesis-software\data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.ideal_model_test (1)">
+  <component name="RunManager" selected="Python.main">
     <configuration name="2d_circular_orbit_test (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="isi-bachelors-thesis-software" />
       <option name="ENV_FILES" value="" />
@@ -225,8 +224,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.ideal_model_test (1)" />
         <item itemvalue="Python.main" />
+        <item itemvalue="Python.ideal_model_test (1)" />
         <item itemvalue="Python.2d_circular_orbit_test (1)" />
         <item itemvalue="Python.ideal_model_test" />
         <item itemvalue="Python.full_ephemeris_test" />
@@ -306,7 +305,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756217208842</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Mild rewrite">
+      <option name="closed" value="true" />
+      <created>1756304630695</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1756304630695</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -331,6 +338,23 @@
     <MESSAGE value="Create simpler simulations" />
     <MESSAGE value="Complete ideal simulations" />
     <MESSAGE value="Removed r from state vector and added comparison plot for angle methods" />
-    <option name="LAST_COMMIT_MESSAGE" value="Removed r from state vector and added comparison plot for angle methods" />
+    <MESSAGE value="Mild rewrite" />
+    <option name="LAST_COMMIT_MESSAGE" value="Mild rewrite" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/Lib/site-packages/scipy/linalg/_decomp_cholesky.py</url>
+          <line>18</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/Lib/site-packages/scipy/linalg/_decomp_cholesky.py</url>
+          <line>105</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

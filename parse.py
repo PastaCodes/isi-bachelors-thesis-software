@@ -1,9 +1,10 @@
-from typing import Final, Collection
+from typing import Final, Collection, Iterable
 
 import numpy as np
+from astropy.time import Time
 from fortranformat import FortranRecordReader
 
-from classes import MinorPlanetObservation, MinorPlanet, Observatory
+from classes import MinorPlanetObservation, MinorPlanet, Observatory, MinorPlanetEphemeris
 from misc import location_from_parallax, decimal_day_date_to_time, PROJECT_ROOT
 
 
@@ -42,10 +43,9 @@ def parse_observation_line(body: MinorPlanet, line: str) -> MinorPlanetObservati
 
 
 def parse_observations(body: MinorPlanet,
-                       accept_methods: Collection[str] | None = ('B', 'C')) -> list[MinorPlanetObservation]:
+                       accept_methods: Collection[str] | None = ('B', 'C')) -> Iterable[MinorPlanetObservation]:
     if not observatories:
         load_observatories()
-    result: list[MinorPlanetObservation] = []
     with open(PROJECT_ROOT + body.observations_filepath, 'rt', encoding='utf-8') as file:
         prev_time = None
         for line in file.readlines():
@@ -60,62 +60,22 @@ def parse_observations(body: MinorPlanet,
                 continue
             if not line[65:71].strip():
                 continue
-            result.append(obs)
+            yield obs
             prev_time = obs.epoch
-    return result
 
 
-'''
-def parse_ephemeris(body: MinorPlanet) -> dict[float, MinorPlanetEphemeris]:
-    data: dict[float, MinorPlanetEphemeris] = {}
+def parse_ephemeris(body: MinorPlanet) -> Iterable[MinorPlanetEphemeris]:
     with open(PROJECT_ROOT + body.ephemeris_filepath, 'rt', encoding='utf-8') as file:
         for line in file.readlines():
-            (t, bx, by, bz, lon, lat, h, ox, oy, oz, sx, sy, sz, a, e, i, n, asc_long, peri_arg, mm, v,
-             ra, dec, app_ra, app_dec, vv, th, phi) = line.split(' ')
-            time = Time(t, format='decimalyear', scale='utc')
-            body_pos = CartesianRepresentation(float(bx), float(by), float(bz), u.au)
-            obs_loc = EarthLocation.from_geodetic(float(lon) * u.rad, float(lat) * u.rad, float(h) * u.m)
-            obs_pos = CartesianRepresentation(float(ox), float(oy), float(oz), u.au)
-            sun_pos = CartesianRepresentation(float(sx), float(sy), float(sz), u.au)
-            data[float(t)] = MinorPlanetEphemeris(body, time, body_pos, obs_loc, obs_pos, sun_pos, float(a) * u.au,
-                                                  float(e) * u.dimensionless_unscaled, float(i) * u.rad,
-                                                  float(n) * u.rad / u.year, float(asc_long) * u.rad,
-                                                  float(peri_arg) * u.rad, float(mm) * u.rad, float(v) * u.rad,
-                                                  float(ra) * u.rad, float(dec) * u.rad, float(app_ra) * u.rad,
-                                                  float(app_dec) * u.rad, float(vv) * u.mag, float(th) * u.rad,
-                                                  float(phi) * u.rad)
-    return data
-
-
-def dump_ephemeris(ephs: dict[float, MinorPlanetEphemeris], body: MinorPlanet) -> None:
-    with open(PROJECT_ROOT + body.ephemeris_filepath, 'wt', encoding='utf-8') as file:
-        lines = []
-        for t, eph in sorted(ephs.items()):
-            bx, by, bz = eph.body_position.get_xyz().to_value(u.au)
-            lon, lat, h = eph.observer_location.geodetic
-            lon = lon.to_value(u.rad)
-            lat = lat.to_value(u.rad)
-            h = h.to(u.m).value
-            ox, oy, oz = eph.observer_position.get_xyz().to_value(u.au)
-            sx, sy, sz = eph.sun_position.get_xyz().to_value(u.au)
-            a = eph.semi_major_axis.to_value(u.au)
-            e = eph.eccentricity.value
-            i = eph.inclination.to_value(u.rad)
-            n = eph.mean_motion.to_value(u.rad / u.year)
-            asc_long = eph.ascending_longitude.to_value(u.rad)
-            peri_arg = eph.periapsis_argument.to_value(u.rad)
-            mm = eph.mean_anomaly.to_value(u.rad)
-            v = eph.true_anomaly.to_value(u.rad)
-            ra = eph.right_ascension.to_value(u.rad)
-            dec = eph.declination.to_value(u.rad)
-            app_ra = eph.apparent_right_ascension.to_value(u.rad)
-            app_dec = eph.apparent_declination.to_value(u.rad)
-            vv = eph.visual_magnitude.to_value(u.mag)
-            th = eph.elongation.to_value(u.rad)
-            phi = eph.phase.to_value(u.rad)
-            lines.append(f'{t} {bx} {by} {bz} {lon} {lat} {h} {ox} {oy} {oz} {sx} {sy} {sz} {a} {e} {i} {n} '
-                         f'{asc_long} {peri_arg} {mm} {v} {ra:.6f} {dec:.6f} {app_ra:.6f} {app_dec:.6f} '
-                         f'{vv} {th} {phi}\n')
-
-        file.writelines(lines)
-'''
+            (t, tx, ty, tz, ox, oy, oz, sx, sy, sz, a, e, i, om, w, mm, v, n, astro_ra, astro_dec,
+             app_ra, app_dec, app_vv, app_th, app_phi, astro_phi) = line.split(' ')
+            yield MinorPlanetEphemeris(body, Time(float(t), format='jd', scale='tdb'),
+                                       np.array([float(tx), float(ty), float(tz)]),
+                                       np.array([float(ox), float(oy), float(oz)]),
+                                       np.array([float(sx), float(sy), float(sz)]),
+                                       float(a), float(e), np.radians(float(i)), np.radians(float(om)),
+                                       np.radians(float(w)), np.radians(float(mm)), np.radians(float(v)),
+                                       np.radians(float(n)), np.radians(float(astro_ra)), np.radians(float(astro_dec)),
+                                       np.radians(float(app_ra)), np.radians(float(app_dec)), float(app_vv),
+                                       np.radians(float(app_th)), np.radians(float(app_phi)),
+                                       np.radians(float(astro_phi)))

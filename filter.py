@@ -3,17 +3,23 @@ from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
 
 from classes import MinorPlanet
 from misc import get_sun_position, get_location_position
-from model import propagate, measure, finalize_transform, initial_state
+from model import propagate, measure, finalize_transform, initial_state, state_autocovariance_matrix, \
+    measurement_autocovariance_matrix
 from orbit import get_mean_motion
 from parse import parse_observations
 
 
-def do_filter(body: MinorPlanet, dir_conc: float, vv_var: float,
-              a0: float = 1.0, e0: float = 0.5, i0: float = 0.25 * np.pi, n0: float | None = None,
-              hh0: float = 20.0, gg0: float = 0.15, mm0_hint: float = 0.0, om0_hint: float = 0.0) -> None:
-    obss = parse_observations(body)
+def do_filter(body: MinorPlanet, a0: float = 1.0, e0: float = 0.5, i0: float = 0.25 * np.pi, n0: float | None = None,
+              hh0: float = 20.0, gg0: float = 0.15, mm0_hint: float = 0.0, om0_hint: float = 0.0,
+              mm0_var: float = 1E-3, a0_var: float = 1E-3, e0_var: float = 1E-3, i0_var: float = 1E-3,
+              om0_var: float = 1E-3, w0_var: float = 1E-3, n0_var: float = 1E-3,
+              hh0_var: float = 1E-3, gg0_var: float = 1E-3,
+              mm_var: float = 1E-5, a_var: float = 1E-7, e_var: float = 1E-7, i_var: float = 1E-7,
+              om_var: float = 1E-7, w_var: float = 1E-7, n_var: float = 1E-7,
+              hh_var: float = 1E-7, gg_var: float = 1E-7, dir_var: float = 1E-5, vv_var: float = 1E-2) -> None:
+    obss = list(parse_observations(body))
 
-    points = MerweScaledSigmaPoints(n=13, alpha=.1, beta=2., kappa=-1)
+    points = MerweScaledSigmaPoints(n=13, alpha=.1, beta=2., kappa=0)
     ukf = UnscentedKalmanFilter(dim_x=13, dim_z=5, dt=None, hx=measure, fx=propagate, points=points)
 
     if n0 is None:
@@ -25,35 +31,21 @@ def do_filter(body: MinorPlanet, dir_conc: float, vv_var: float,
                        get_location_position(obs0.observatory.location, t0),
                        get_sun_position(t0),
                        a0, e0, i0, n0, hh0, gg0, mm0_hint, om0_hint)
-    pp0 = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
-    prev_epoch = t0
+    pp0 = state_autocovariance_matrix(x0, mm0_var, a0_var, e0_var, i0_var, om0_var, w0_var, n0_var, hh0_var, gg0_var)
+    prev_epoch = t0.tdb
     ukf.x = x0
     ukf.P = pp0
 
     for i, obs in enumerate(obss[1:]):
         obs_vec = obs.to_vector()
-        cos_ra, sin_ra, cos_dec, sin_dec, vv = obs_vec
-        dt = (obs.epoch - prev_epoch).to_value('jd')
-        ukf.Q = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
-        ukf.R = np.array([[sin_ra * sin_ra / (dir_conc * cos_dec * cos_dec),
-                           -sin_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           0.0, 0.0, 0.0],
-                          [-sin_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           cos_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           0.0, 0.0, 0.0],
-                          [0.0, 0.0,
-                           sin_dec * sin_dec / dir_conc,
-                           -sin_dec * cos_dec / dir_conc,
-                           0.0],
-                          [0.0, 0.0,
-                           -sin_dec * cos_dec / dir_conc,
-                           cos_dec * cos_dec / dir_conc,
-                           0.0],
-                          [0.0, 0.0, 0.0, 0.0, vv_var]])
+        epoch = obs.epoch.tdb
+        dt = (epoch - prev_epoch).to_value('jd')
+        ukf.Q = state_autocovariance_matrix(ukf.x, mm_var, a_var, e_var, i_var, om_var, w_var, n_var, hh_var, gg_var)
         ukf.predict(dt=dt)
-        sun_pos = get_sun_position(obs.epoch)
-        obs_pos = get_location_position(obs.observatory.location, obs.epoch)
+        sun_pos = get_sun_position(epoch)
+        obs_pos = get_location_position(obs.observatory.location, epoch)
+        ukf.R = measurement_autocovariance_matrix(obs_vec, dir_var, vv_var)
         ukf.update(z=obs_vec, obs_pos=obs_pos, sun_pos=sun_pos)
         print(finalize_transform(ukf.x))
         input()
-        prev_epoch = obs.epoch
+        prev_epoch = epoch

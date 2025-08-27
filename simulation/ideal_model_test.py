@@ -4,7 +4,8 @@ from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
 from scipy.spatial.transform import Rotation
 
 from misc import wrap_angle, arctan2pos, safe_arcsin, law_of_cosines, angle_components, norm
-from model import reverse_transform, measure, propagate, initial_state, finalize_transform
+from model import reverse_transform, measure, propagate, initial_state, finalize_transform, \
+    state_autocovariance_matrix, measurement_autocovariance_matrix
 from orbit import (eccentric_anomaly_from_mean_anomaly, true_anomaly_from_eccentric_anomaly,
                    distance_from_eccentric_anomaly)
 from photometry import visual_magnitude_from_absolute
@@ -50,8 +51,11 @@ SUN_W = np.radians(3.231307573061241E+02)   # Sun orbit argument of periapsis
 SUN_N = np.radians(8.293546641817494E-02)   # Sun orbit mean motion
 SUN_TP = 2.452714888563351E+06              # Sun orbit time of periapsis JD TDB
 
-DIR_CONC = 1E7  # Precision of the observation direction (concentration parameter of the Fisher distribution)
-MAG_VAR = 0.01  # Variance of the visual magnitude
+# Variance of the observation direction (technically the inverse of the concentration parameter of the Fisher
+# distribution)
+DIR_VAR = 1E-7
+# Variance of the visual magnitude
+MAG_VAR = 1E-2
 
 
 def real_position(t: float, a: float, e: float, i: float, om: float, w: float, n: float, tp: float) -> np.ndarray:
@@ -72,7 +76,7 @@ def gen_times(n: int, min_dist: float, max_dist: float, start: float, rng: np.ra
 
 
 def observe(tgt_pos: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray, hh: float, gg: float,
-            direction_precision: float, vv_var: float, rng: np.random.Generator) -> np.ndarray:
+            dir_var: float, vv_var: float, rng: np.random.Generator) -> np.ndarray:
     tgt_obs_pos = tgt_pos - obs_pos
     tgt_obs_dist = norm(tgt_obs_pos)
 
@@ -80,7 +84,7 @@ def observe(tgt_pos: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray, hh: f
     # Apply Fisher noise to the observation direction
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.vonmises_fisher.html
     # noinspection PyTypeChecker
-    tgt_obs_ray = sp.stats.vonmises_fisher(mu=tgt_obs_ray, kappa=direction_precision, seed=rng).rvs(1)[0]
+    tgt_obs_ray = sp.stats.vonmises_fisher(mu=tgt_obs_ray, kappa=(1.0 / dir_var), seed=rng).rvs(1)[0]
     ra = arctan2pos(tgt_obs_ray[1], tgt_obs_ray[0])
     dec = safe_arcsin(tgt_obs_ray[2])
 
@@ -114,20 +118,20 @@ def main() -> None:
     mm0_hint = 0.0
     om0_hint = TGT_OM
 
-    dir_conc = DIR_CONC
+    dir_var = DIR_VAR
     vv_var = MAG_VAR
 
-    noisy = [observe(t, o, s, TGT_HH, TGT_GG, DIR_CONC, MAG_VAR, rng)
+    noisy = [observe(t, o, s, TGT_HH, TGT_GG, DIR_VAR, MAG_VAR, rng)
              for t, o, s in zip(tgt_pos, obs_pos, sun_pos)]
     prepared = [prepare(obs) for obs in noisy]
 
     naive = [reverse_transform(obs, o, s, hh0, gg0) for obs, o, s in zip(prepared, obs_pos, sun_pos)]
 
-    points = MerweScaledSigmaPoints(13, alpha=1e-3, beta=2, kappa=1)
+    points = MerweScaledSigmaPoints(13, alpha=1E-3, beta=2, kappa=0)
     ukf = UnscentedKalmanFilter(dim_x=13, dim_z=5, dt=None, hx=measure, fx=propagate, points=points)
 
     x0 = initial_state(prepared[0], obs_pos[0], sun_pos[0], a0, e0, i0, n0, hh0, gg0, mm0_hint, om0_hint)
-    pp0 = np.diag([0.5, 0.5, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
+    pp0 = state_autocovariance_matrix(x0, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3)
     prev_t = times[0]
     ukf.x = x0
     ukf.P = pp0
@@ -135,24 +139,9 @@ def main() -> None:
     estimates = [finalize_transform(x0)]
     for t, obs, o, s in zip(times[1:], prepared[1:], obs_pos[1:], sun_pos[1:]):
         dt = t - prev_t
-        ukf.Q = 1E-7 * np.eye(13)
-        cos_ra, sin_ra, cos_dec, sin_dec, v = obs
-        ukf.R = np.array([[sin_ra * sin_ra / (dir_conc * cos_dec * cos_dec),
-                           -sin_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           0.0, 0.0, 0.0],
-                          [-sin_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           cos_ra * cos_ra / (dir_conc * cos_dec * cos_dec),
-                           0.0, 0.0, 0.0],
-                          [0.0, 0.0,
-                           sin_dec * sin_dec / dir_conc,
-                           -sin_dec * cos_dec / dir_conc,
-                           0.0],
-                          [0.0, 0.0,
-                           -sin_dec * cos_dec / dir_conc,
-                           cos_dec * cos_dec / dir_conc,
-                           0.0],
-                          [0.0, 0.0, 0.0, 0.0, vv_var]])
+        ukf.Q = state_autocovariance_matrix(ukf.x, 1E-8, 1E-8, 1E-8, 1E-8, 1E-8, 1E-8, 1E-8, 1E-8, 1E-8)
         ukf.predict(dt=dt)
+        ukf.R = measurement_autocovariance_matrix(obs, dir_var, vv_var)
         ukf.update(z=obs, obs_pos=o, sun_pos=s)
         estimates.append(finalize_transform(ukf.x))
         prev_t = t

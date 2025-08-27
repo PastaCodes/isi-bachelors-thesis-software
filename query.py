@@ -1,18 +1,19 @@
 import itertools
+import urllib.parse
 from typing import Iterable
 
 import astropy.units as u
-import numpy as np
 import requests
-from astropy.coordinates import EarthLocation, CartesianRepresentation
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
-from astropy.units import Quantity
 
-from classes import MinorPlanetEphemeris, MinorPlanet
+from classes import MinorPlanet
+from misc import PROJECT_ROOT
 from parse import parse_observations
 
 
-def query_vector_table(command: str, times: list[Time]) -> Iterable[CartesianRepresentation]:
+def query_target_position(command: str, times: list[Time]) -> Iterable[tuple[str, str, str]]:
+    print('Querying target position...')
     tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
     url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
           '?format=text' \
@@ -33,11 +34,14 @@ def query_vector_table(command: str, times: list[Time]) -> Iterable[CartesianRep
     content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
     for line in content.split('\n'):
         columns = line.split(',')
-        yield CartesianRepresentation(float(columns[2]), float(columns[3]), float(columns[4]), u.au)
+        x = columns[2].strip()
+        y = columns[3].strip()
+        z = columns[4].strip()
+        yield x, y, z
 
 
-def query_orbital_elements(command: str, times: list[Time]) -> \
-        Iterable[tuple[Quantity, Quantity, Quantity, Quantity, Quantity, Quantity, Quantity, Quantity]]:
+def query_orbital_elements(command: str, times: list[Time]) -> Iterable[tuple[str, str, str, str, str, str, str, str]]:
+    print('Querying orbital elements...')
     tlist = '%20'.join([f'%27{t.tdb.to_value('jd')}%27' for t in times])
     url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
           '?format=text' \
@@ -57,19 +61,20 @@ def query_orbital_elements(command: str, times: list[Time]) -> \
     content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
     for line in content.split('\n'):
         columns = line.split(',')
-        e = float(columns[2]) * u.dimensionless_unscaled
-        i = float(columns[4]) * u.deg
-        asc_long = float(columns[5]) * u.deg
-        peri_arg = float(columns[6]) * u.deg
-        n = float(columns[8]) * u.deg / u.d
-        mm = float(columns[9]) * u.deg
-        v = float(columns[10]) * u.deg
-        a = float(columns[11]) * u.au
-        yield a, e, i, n, asc_long, peri_arg, mm, v
+        e = columns[2].strip()
+        i = columns[4].strip()
+        om = columns[5].strip()
+        w = columns[6].strip()
+        n = columns[8].strip()
+        mm = columns[9].strip()
+        v = columns[10].strip()
+        a = columns[11].strip()
+        yield a, e, i, om, w, mm, v, n
 
 
-def query_observer_table(command: str, times: list[Time], location: EarthLocation) -> \
-        Iterable[tuple[Quantity, Quantity, Quantity, Quantity, Quantity, Quantity, Quantity]]:
+def query_observation(command: str, times: list[Time], location: EarthLocation) -> \
+        Iterable[tuple[str, str, str, str, str, str, str, str]]:
+    print('Querying observation data...')
     tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
     lon, lat, h = location.geodetic
     url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
@@ -82,7 +87,7 @@ def query_observer_table(command: str, times: list[Time], location: EarthLocatio
           f'&SITE_COORD=%27{lon.to(u.deg).value}%2C{lat.to(u.deg).value}%2C{h.to(u.km).value}%27' \
           '&TLIST_TYPE=JD' \
           '&TIME_TYPE=UT' \
-          '&QUANTITIES=%271%2C2%2C9%2C23%2C24%2C28%2C43%27' \
+          '&QUANTITIES=%271%2C2%2C9%2C23%2C24%2C43%27' \
           '&REF_SYSTEM=ICRF' \
           '&REF_PLANE=FRAME' \
           '&ANG_FORMAT=DEG' \
@@ -96,17 +101,19 @@ def query_observer_table(command: str, times: list[Time], location: EarthLocatio
     content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
     for line in content.split('\n'):
         columns = line.split(',')
-        ra = float(columns[3]) * u.deg
-        dec = float(columns[4]) * u.deg
-        app_ra = float(columns[5]) * u.deg
-        app_dec = float(columns[6]) * u.deg
-        vv = float(columns[7]) * u.mag
-        th = np.radians(float(columns[9])) * u.deg
-        phi = np.radians(float(columns[13])) * u.deg
-        yield ra, dec, app_ra, app_dec, vv, th, phi
+        astro_ra = columns[3].strip()
+        astro_dec = columns[4].strip()
+        app_ra = columns[5].strip()
+        app_dec = columns[6].strip()
+        app_vv = columns[7].strip()
+        app_th = columns[9].strip()
+        app_phi = columns[11].strip()
+        astro_phi = columns[12].strip()
+        yield astro_ra, astro_dec, app_ra, app_dec, app_vv, app_th, app_phi, astro_phi
 
 
-def query_earth_location(location: EarthLocation, times: list[Time]) -> Iterable[CartesianRepresentation]:
+def query_observer_position(location: EarthLocation, times: list[Time]) -> Iterable[tuple[str, str, str]]:
+    print('Querying observer position...')
     tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
     lon, lat, h = location.geodetic
     url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
@@ -128,10 +135,14 @@ def query_earth_location(location: EarthLocation, times: list[Time]) -> Iterable
     content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
     for line in content.split('\n'):
         columns = line.split(',')
-        yield CartesianRepresentation(float(columns[2]), float(columns[3]), float(columns[4]), u.au)
+        x = columns[2].strip()
+        y = columns[3].strip()
+        z = columns[4].strip()
+        yield x, y, z
 
 
-def query_sun(times: list[Time]) -> Iterable[CartesianRepresentation]:
+def query_sun_position(times: list[Time]) -> Iterable[tuple[str, str, str]]:
+    print('Querying Sun position...')
     tlist = '%20'.join([f'%27{t.utc.to_value('jd')}%27' for t in times])
     url = 'https://ssd.jpl.nasa.gov/api/horizons.api' \
           '?format=text' \
@@ -152,32 +163,45 @@ def query_sun(times: list[Time]) -> Iterable[CartesianRepresentation]:
     content = response.text.split('$$SOE\n', 1)[1].split('\n$$EOE', 1)[0]
     for line in content.split('\n'):
         columns = line.split(',')
-        yield CartesianRepresentation(float(columns[2]), float(columns[3]), float(columns[4]), u.au)
+        x = columns[2].strip()
+        y = columns[3].strip()
+        z = columns[4].strip()
+        yield x, y, z
 
 
-def query_ephemeris(body: MinorPlanet, max_batch_size: int = 30) -> dict[float, MinorPlanetEphemeris]:
-    command = f'%27DES%3D{body.name.replace(' ', '%20')}%3B%27'
-    all_observations = parse_observations(body)
+def query_ephemeris(target_body: MinorPlanet, max_batch_size: int = 30):
+    command = f'%27DES%3D{urllib.parse.quote(target_body.jpl_designation)}%3B%27'
+    all_observations = parse_observations(target_body)
     by_observatory = itertools.groupby(all_observations, lambda obs: obs.observatory)
-    result: dict[float, MinorPlanetEphemeris] = {}
+    ephs: dict[float, tuple] = dict()
     for observatory, group in by_observatory:
         batches = itertools.batched(group, max_batch_size)
         for batch in batches:
             times = [o.epoch for o in batch]
-            for epoch, target_pos, orb_data, obs_data, loc_pos, sun_pos in \
+            for epoch, tgt_pos, orb_data, obs_data, obs_pos, sun_pos in \
                     zip(times,
-                        query_vector_table(command, times),
+                        query_target_position(command, times),
                         query_orbital_elements(command, times),
-                        query_observer_table(command, times, observatory.location),
-                        query_earth_location(observatory.location, times),
-                        query_sun(times)):
-                a, e, i, n, asc_long, peri_arg, mm, v = orb_data
-                ra, dec, app_ra, app_dec, vv, th, phi = obs_data
-                t = epoch.to_value('decimalyear')
-                result[t] = MinorPlanetEphemeris(body, epoch, target_pos, observatory.location, loc_pos, sun_pos,
-                                                 a, e, i, n, asc_long, peri_arg, mm, v, ra, dec, app_ra, app_dec,
-                                                 vv, th, phi)
+                        query_observation(command, times, observatory.location),
+                        query_observer_position(observatory.location, times),
+                        query_sun_position(times)):
+                t = epoch.tdb.to_value('jd')
+                tx, ty, tz = tgt_pos
+                a, e, i, om, w, mm, v, n = orb_data
+                astro_ra, astro_dec, app_ra, app_dec, app_vv, app_th, app_phi, astro_phi = obs_data
+                ox, oy, oz = obs_pos
+                sx, sy, sz = sun_pos
+                ephs[t] = (tx, ty, tz, ox, oy, oz, sx, sy, sz, a, e, i, om, w, mm, v, n, astro_ra, astro_dec,
+                           app_ra, app_dec, app_vv, app_th, app_phi, astro_phi)
 
-            print(f'Batch completed. Current total: {len(result)} of {len(all_observations)}')
+            print(f'Batch completed. Current total: {len(ephs)} of {len(all_observations)}')
 
-    return result
+    lines = []
+    for t, eph in sorted(ephs.items()):
+        (tx, ty, tz, ox, oy, oz, sx, sy, sz, a, e, i, om, w, mm, v, n, astro_ra, astro_dec,
+         app_ra, app_dec, app_vv, app_th, app_phi, astro_phi) = eph
+        lines.append(f'{t:.10f} {tx} {ty} {tz} {ox} {oy} {oz} {sx} {sy} {sz} {a} {e} {i} {om} {w} {mm} {v} {n} '
+                     f'{astro_ra} {astro_dec} {app_ra} {app_dec} {app_vv} {app_th} {app_phi} {astro_phi}\n')
+
+    with open(PROJECT_ROOT + target_body.ephemeris_filepath, 'wt', encoding='utf-8') as file:
+        file.writelines(lines)

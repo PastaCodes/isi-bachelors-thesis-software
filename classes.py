@@ -1,4 +1,4 @@
-from typing import Collection
+from functools import cached_property
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -15,11 +15,29 @@ class Observatory:
 
 
 class MinorPlanet:
-    def __init__(self, designations: str | Collection[str], observations_filepath: str | None = None,
-                 ephemeris_filepath: str | None = None):
-        self.designations = designations if isinstance(designations, list) else [designations]
+    def __init__(self, display_name: str | None = None, jpl_designation: str | None = None,
+                 additional_designations: str | set[str] | None = None,
+                 observations_filepath: str | None = None, ephemeris_filepath: str | None = None):
+        self.display_name = jpl_designation if display_name is None else display_name
+        self.jpl_designation = display_name if jpl_designation is None else jpl_designation
+        if isinstance(additional_designations, set):
+            self.additional_designations = additional_designations
+        elif isinstance(additional_designations, str):
+            self.additional_designations = {additional_designations}
+        else:
+            self.additional_designations = set()
         self.observations_filepath = observations_filepath
         self.ephemeris_filepath = ephemeris_filepath
+
+    @cached_property
+    def all_designations(self):
+        all_designations = set()
+        if self.display_name:
+            all_designations.add(self.display_name)
+        if self.jpl_designation:
+            all_designations.add(self.jpl_designation)
+        all_designations.update(self.additional_designations)
+        return all_designations
 
 
 class MinorPlanetObservation:
@@ -61,55 +79,30 @@ class MinorPlanetState:
         self.slope_parameter = gg
 
 
-'''
 class MinorPlanetEphemeris:
-    def __init__(self, target_body: MinorPlanet, epoch: Time, target_pos: CartesianRepresentation,
-                 observer_loc: EarthLocation, observer_pos: CartesianRepresentation, sun_pos: CartesianRepresentation,
-                 a: Quantity, e: Quantity, i: Quantity, n: Quantity, asc_long: Quantity, peri_arg: Quantity,
-                 mm: Quantity, v: Quantity, ra: Quantity, dec: Quantity, app_ra: Quantity, app_dec: Quantity,
-                 vv: Quantity, th: Quantity, phi: Quantity):
-        """
-        :param target_body:
-        :param epoch:
-        :param target_pos: Geometric position of the target's barycenter
-        :param observer_loc: Earth location of the observer
-        :param observer_pos: Geometric position of the observer
-        :param sun_pos: Geometric position of the Sun's barycenter
-        :param a:
-        :param e:
-        :param i:
-        :param n:
-        :param asc_long:
-        :param peri_arg:
-        :param mm:
-        :param v:
-        :param ra: Astrometric right ascension
-        :param dec: Astrometric declination
-        :param app_ra: Refracted apparent right ascension
-        :param app_dec: Refracted apparent declination
-        :param vv:
-        :param th:
-        :param phi: True phase
-        """
+    def __init__(self, target_body: MinorPlanet, epoch: Time, target_pos: np.ndarray,
+                 observer_pos: np.ndarray, sun_pos: np.ndarray,
+                 a: float, e: float, i: float, n: float, om: float, w: float,
+                 mm: float, v: float, astro_ra: float, astro_dec: float, app_ra: float, app_dec: float,
+                 app_vv: float, app_th: float, app_phi: float, astro_phi: float):
         self.target_body = target_body
         self.epoch = epoch
         self.target_position = target_pos
-        self.observer_location = observer_loc
         self.observer_position = observer_pos
         self.sun_position = sun_pos
         self.semi_major_axis = a
         self.eccentricity = e
         self.inclination = i
         self.mean_motion = n
-        self.ascending_longitude = asc_long
-        self.periapsis_argument = peri_arg
+        self.ascending_longitude = om
+        self.periapsis_argument = w
         self.mean_anomaly = mm
         self.true_anomaly = v
-        self.right_ascension = ra
-        self.declination = dec
+        self.astrometric_right_ascension = astro_ra
+        self.astrometric_declination = astro_dec
         self.apparent_right_ascension = app_ra
         self.apparent_declination = app_dec
-        self.visual_magnitude = vv
-        self.elongation = th  # Not quite the true elongation
-        self.phase = phi
-'''
+        self.apparent_visual_magnitude = app_vv
+        self.apparent_elongation = app_th
+        self.apparent_phase = app_phi
+        self.astrometric_phase = astro_phi
