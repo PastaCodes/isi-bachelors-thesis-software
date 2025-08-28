@@ -2,11 +2,11 @@ import numpy as np
 from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
 
 from classes import MinorPlanet
-from misc import get_sun_position, get_location_position
 from model import propagate, measure, finalize_transform, initial_state, state_autocovariance_matrix, \
     measurement_autocovariance_matrix
 from orbit import get_mean_motion
 from parse import parse_observations
+from sky import get_sun_position, get_location_position
 
 
 def do_filter(body: MinorPlanet, a0: float = 1.0, e0: float = 0.5, i0: float = 0.25 * np.pi, n0: float | None = None,
@@ -16,7 +16,8 @@ def do_filter(body: MinorPlanet, a0: float = 1.0, e0: float = 0.5, i0: float = 0
               hh0_var: float = 1E-3, gg0_var: float = 1E-3,
               mm_var: float = 1E-5, a_var: float = 1E-7, e_var: float = 1E-7, i_var: float = 1E-7,
               om_var: float = 1E-7, w_var: float = 1E-7, n_var: float = 1E-7,
-              hh_var: float = 1E-7, gg_var: float = 1E-7, dir_var: float = 1E-5, vv_var: float = 1E-2) -> None:
+              hh_var: float = 0.0, gg_var: float = 0.0, dir_var: float = 1E-5, vv_var: float = 1E-2,
+              dt_exp: float = 1.0) -> None:
     obss = list(parse_observations(body))
 
     points = MerweScaledSigmaPoints(n=13, alpha=.1, beta=2., kappa=0)
@@ -40,7 +41,8 @@ def do_filter(body: MinorPlanet, a0: float = 1.0, e0: float = 0.5, i0: float = 0
         obs_vec = obs.to_vector()
         epoch = obs.epoch.tdb
         dt = (epoch - prev_epoch).to_value('jd')
-        ukf.Q = state_autocovariance_matrix(ukf.x, mm_var, a_var, e_var, i_var, om_var, w_var, n_var, hh_var, gg_var)
+        ukf.Q = (state_autocovariance_matrix(ukf.x, mm_var, a_var, e_var, i_var, om_var, w_var, n_var, hh_var, gg_var)
+                 * np.pow(dt, dt_exp))
         ukf.predict(dt=dt)
         sun_pos = get_sun_position(epoch)
         obs_pos = get_location_position(obs.observatory.location, epoch)

@@ -5,19 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a7c5a6cd-3fea-464e-aa7a-accceedd7c75" name="Changes" comment="Mild rewrite">
-      <change afterPath="$PROJECT_DIR$/statistics.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sky.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TODO.txt" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classes.py" beforeDir="false" afterPath="$PROJECT_DIR$/classes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/2010_rf12_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2010_rf12_eph.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/2024_yr4_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/2024_yr4_eph.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/Bennu_eph.txt" beforeDir="false" afterPath="$PROJECT_DIR$/data/Bennu_eph.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/filter.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/misc.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/simulation/ideal_model_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulation/ideal_model_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/orbit.py" beforeDir="false" afterPath="$PROJECT_DIR$/orbit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/statistics.py" beforeDir="false" afterPath="$PROJECT_DIR$/statistics.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
