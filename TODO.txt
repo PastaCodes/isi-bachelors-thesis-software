@@ -1,5 +1,4 @@
 TODO
-- compute variance and concentration parameters using ephemeris data
 - test option for keeping cartesian position in the state vector instead of the mean anomaly
 - derive initial estimates for orbit parameters (semi major axis and eccentricity) from tangent speed at t0 (?)
 - look for a root finding method that guarantees finding the closest root to an initial guess

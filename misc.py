@@ -5,7 +5,7 @@ from pathlib import Path
 
 import astropy.units as u
 import numpy as np
-from astropy.coordinates import EarthLocation, CartesianRepresentation, get_body_barycentric
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 
@@ -85,13 +85,3 @@ def location_from_parallax(lon_deg: float, p1: float, p2: float) -> EarthLocatio
     y = p1 * np.sin(lon)
     z = p2
     return EarthLocation.from_geocentric(x, y, z, unit=u.earthRad)
-
-
-def get_sun_position(epoch: Time) -> np.ndarray:
-    return get_body_barycentric('sun', epoch, 'jpl').get_xyz().to_value(u.au)
-
-
-def get_location_position(location: EarthLocation, epoch: Time) -> np.ndarray:
-    earth_pos: CartesianRepresentation = get_body_barycentric('earth', epoch, 'jpl')
-    observer_geocentric_pos, _ = location.get_gcrs_posvel(epoch)
-    return (observer_geocentric_pos + earth_pos).get_xyz().to_value(u.au)

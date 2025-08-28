@@ -1,10 +1,12 @@
 import numpy as np
 
-from misc import unit_vector_separation, angle_components, law_of_cosines, norm, angle_from_components
+from misc import angle_components, norm, angle_from_components
 from orbit import (orbital_angles_from_position, true_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_distance,
                    mean_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_mean_anomaly,
                    distance_from_eccentric_anomaly, position_from_orbital_angle_components, advance_mean_anomaly)
 from photometry import solve_distance_and_phase, visual_magnitude_from_absolute
+from sky import phase_from_distances, direction_to_ra_dec_components, ra_dec_components_to_direction, \
+    elongation_from_directions
 
 
 def reverse_transform(obs_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray,
@@ -13,11 +15,11 @@ def reverse_transform(obs_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndar
     [*α, *δ, V] --> [x, y, z]
     """
     cos_ra, sin_ra, cos_dec, sin_dec, vv = obs_vec
-    tgt_obs_unit_vec = np.array([cos_ra * cos_dec, sin_ra * cos_dec, sin_dec])
+    tgt_obs_unit_vec = ra_dec_components_to_direction(cos_ra, sin_ra, cos_dec, sin_dec)
     sun_obs_pos = sun_pos - obs_pos
     sun_obs_dist = norm(sun_obs_pos)
     sun_obs_unit_vec = sun_obs_pos / sun_obs_dist
-    th = unit_vector_separation(tgt_obs_unit_vec, sun_obs_unit_vec)
+    th = elongation_from_directions(tgt_obs_unit_vec, sun_obs_unit_vec)
     tgt_obs_dist, _ = solve_distance_and_phase(vv, sun_obs_dist, th, hh, gg)
     tgt_obs_pos = tgt_obs_dist * tgt_obs_unit_vec
     tgt_pos = tgt_obs_pos + obs_pos
@@ -60,11 +62,8 @@ def measure(state_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray) -> 
     tgt_obs_dist = norm(tgt_obs_pos)
     tgt_sun_dist = norm(tgt_pos - sun_pos)
     obs_sun_dist = norm(obs_pos - sun_pos)
-    sin_dec = tgt_obs_pos[2] / tgt_obs_dist
-    cos_dec = np.sqrt(1.0 - sin_dec * sin_dec)
-    cos_ra = tgt_obs_pos[0] / (tgt_obs_dist * cos_dec)
-    sin_ra = tgt_obs_pos[1] / (tgt_obs_dist * cos_dec)
-    phi = law_of_cosines(tgt_obs_dist, tgt_sun_dist, obs_sun_dist)
+    cos_ra, sin_ra, cos_dec, sin_dec = direction_to_ra_dec_components(tgt_obs_pos / tgt_obs_dist)
+    phi = phase_from_distances(tgt_sun_dist, tgt_obs_dist, obs_sun_dist)
     vv = visual_magnitude_from_absolute(hh, tgt_sun_dist, tgt_obs_dist, phi, gg)
     return np.array([cos_ra, sin_ra, cos_dec, sin_dec, vv])
 
