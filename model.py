@@ -1,5 +1,6 @@
 import numpy as np
 
+from classes import MinorPlanetObservation, MinorPlanetEphemeris
 from misc import angle_components, norm, angle_from_components
 from orbit import (orbital_angles_from_position, true_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_distance,
                    mean_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_mean_anomaly,
@@ -44,6 +45,7 @@ def finalize_transform(state_vec: np.ndarray) -> np.ndarray:
     [*M, a, e, *i, *Ω, *ω, n, H, G] --> [x, y, z]
     """
     cos_mm, sin_mm, a, e, cos_i, sin_i, cos_om, sin_om, cos_w, sin_w, n, hh, gg = state_vec
+    e = np.clip(e, 0.0, 1.0)
     mm = angle_from_components(cos_mm, sin_mm)
     ee = eccentric_anomaly_from_mean_anomaly(mm, e)
     v = true_anomaly_from_eccentric_anomaly(ee, e)
@@ -57,7 +59,10 @@ def measure(state_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray) -> 
     [*M, a, e, *i, *Ω, *ω, n, H, G]_k --> [*α, *δ, V]_k
     """
     tgt_pos = finalize_transform(state_vec)
-    hh, gg = state_vec[-2:]
+    # noinspection PyTypeChecker
+    hh: float = state_vec[11]
+    # noinspection PyTypeChecker
+    gg: float = np.maximum(state_vec[12], -0.25)
     tgt_obs_pos = tgt_pos - obs_pos
     tgt_obs_dist = norm(tgt_obs_pos)
     tgt_sun_dist = norm(tgt_pos - sun_pos)
@@ -106,3 +111,8 @@ def measurement_autocovariance_matrix(obs_vec: np.ndarray, dir_var: float, vv_va
     rr[2:4, 2:4] = angle_components_autocovariance_matrix(cos_dec, sin_dec, dir_var)
     rr[4, 4] = vv_var
     return rr
+
+
+def naive_transform(obs: MinorPlanetObservation, eph: MinorPlanetEphemeris) -> np.ndarray:
+    return reverse_transform(obs.to_vector(), eph.observer_position, eph.sun_position,
+                             obs.target_body.absolute_magnitude, obs.target_body.slope_parameter)

@@ -4,7 +4,7 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from misc import angle_components
+from misc import angle_components, angle_from_components
 from photometry import visual_magnitude_from_absolute
 from sky import direction_to_ra_dec, elongation_from_distances, phase_from_distances
 
@@ -66,6 +66,31 @@ class MinorPlanetObservation:
         return np.array([*angle_components(self.right_ascension),
                          *angle_components(self.declination),
                          self.visual_magnitude])
+
+
+class MinorPlanetEstimate:
+    def __init__(self, body: MinorPlanet, epoch: Time, pos: np.ndarray, mm: float, a: float, e: float, i: float,
+                 om: float, w: float, n: float, hh: float, gg: float):
+        self.body = body
+        self.epoch = epoch
+        self.position = pos
+        self.mean_anomaly = mm
+        self.semi_major_axis = a
+        self.eccentricity = e
+        self.inclination = i
+        self.ascending_longitude = om
+        self.periapsis_argument = w
+        self.mean_motion = n
+        self.absolute_magnitude = hh
+        self.slope_parameter = gg
+
+    @classmethod
+    def from_state_vector(cls, state_vec: np.ndarray, body: MinorPlanet, epoch: Time) -> 'MinorPlanetEstimate':
+        from model import finalize_transform
+        pos = finalize_transform(state_vec)
+        cos_mm, sin_mm, a, e, cos_i, sin_i, cos_om, sin_om, cos_w, sin_w, n, hh, gg = state_vec
+        return cls(body, epoch, pos, angle_from_components(cos_mm, sin_mm), a, e, angle_from_components(cos_i, sin_i),
+                   angle_from_components(cos_om, sin_om), angle_from_components(cos_w, sin_w), n, hh, gg)
 
 
 class MinorPlanetEphemeris:
