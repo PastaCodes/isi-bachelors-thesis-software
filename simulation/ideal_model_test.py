@@ -146,11 +146,9 @@ def main() -> None:
         estimates.append(finalize_transform(ukf.x))
         prev_t = t
 
-    import matplotlib.pyplot as plt
-    plt.scatter(times, [norm(n - truth) for n, truth in zip(naive, tgt_pos)], marker='+', c='r')
-    plt.scatter(times, [norm(est - truth) for est, truth in zip(estimates, tgt_pos)], marker='+', c='k')
-    # plt.ylim(-0.001, 0.05)
-    plt.show()
+    from visualize import plot_errors_base, plot_3d_base
+    plot_3d_base(obs_pos, tgt_pos, naive, estimates)
+    plot_errors_base(tgt_pos, naive, estimates, times)  # , y_lim=0.05)
 
 
 if __name__ == '__main__':

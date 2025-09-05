@@ -5,6 +5,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from misc import angle_components, angle_from_components
+from orbit import get_mean_motion
 from photometry import visual_magnitude_from_absolute
 from sky import direction_to_ra_dec, elongation_from_distances, phase_from_distances
 
@@ -19,8 +20,16 @@ class Observatory:
 class MinorPlanet:
     def __init__(self, display_name: str | None = None, jpl_designation: str | None = None,
                  additional_designations: str | set[str] | None = None,
-                 absolute_magnitude: float | None = None, slope_parameter: float | None = 0.15,
-                 observations_filepath: str | None = None, ephemeris_filepath: str | None = None):
+                 observations_filepath: str | None = None, ephemeris_filepath: str | None = None,
+                 a0: float = 1.0, e0: float = 0.5, i0: float = 0.25 * np.pi, n0: float | None = None,
+                 hh0: float = 20.0, gg0: float = 0.15, mm0_hint: float = 0.0, om0_hint: float = 0.0,
+                 mm0_var: float = 1E-3, a0_var: float = 1E-5, e0_var: float = 1E-5, i0_var: float = 1E-5,
+                 om0_var: float = 1E-3, w0_var: float = 1E-3, n0_var: float = 1E-3,
+                 hh0_var: float = 1E-5, gg0_var: float = 1E-3,
+                 mm_var: float = 1E-5, a_var: float = 1E-7, e_var: float = 1E-7, i_var: float = 1E-7,
+                 om_var: float = 1E-7, w_var: float = 1E-7, n_var: float = 1E-7,
+                 hh_var: float = 1E-12, gg_var: float = 1E-12, dir_var: float = 1E-5, vv_var: float = 1E-2,
+                 dt_exp: float = 1.0):
         self.display_name = jpl_designation if display_name is None else display_name
         self.jpl_designation = display_name if jpl_designation is None else jpl_designation
         if isinstance(additional_designations, set):
@@ -29,8 +38,35 @@ class MinorPlanet:
             self.additional_designations = {additional_designations}
         else:
             self.additional_designations = set()
-        self.absolute_magnitude = absolute_magnitude
-        self.slope_parameter = slope_parameter
+        self.a0 = a0
+        self.e0 = e0
+        self.i0 = i0
+        self.n0 = get_mean_motion(a0) if n0 is None else n0
+        self.hh0 = hh0
+        self.gg0 = gg0
+        self.mm0_hint = mm0_hint
+        self.om0_hint = om0_hint
+        self.mm0_var = mm0_var
+        self.a0_var = a0_var
+        self.e0_var = e0_var
+        self.i0_var = i0_var
+        self.om0_var = om0_var
+        self.w0_var = w0_var
+        self.n0_var = n0_var
+        self.hh0_var = hh0_var
+        self.gg0_var = gg0_var
+        self.mm_var = mm_var
+        self.a_var = a_var
+        self.e_var = e_var
+        self.i_var = i_var
+        self.om_var = om_var
+        self.w_var = w_var
+        self.n_var = n_var
+        self.hh_var = hh_var
+        self.gg_var = gg_var
+        self.dir_var = dir_var
+        self.vv_var = vv_var
+        self.dt_exp = dt_exp
         self.observations_filepath = observations_filepath
         self.ephemeris_filepath = ephemeris_filepath
 
@@ -168,15 +204,15 @@ class MinorPlanetEphemeris:
 
     @cached_property
     def geometric_visual_magnitude(self) -> float:
-        return visual_magnitude_from_absolute(self.target_body.absolute_magnitude, self.geometric_target_sun_distance,
+        return visual_magnitude_from_absolute(self.target_body.hh0, self.geometric_target_sun_distance,
                                               self.geometric_target_observer_distance, self.geometric_phase,
-                                              self.target_body.slope_parameter)
+                                              self.target_body.gg0)
 
     def to_state_vector(self) -> np.ndarray:
         return np.array([*angle_components(self.mean_anomaly), self.semi_major_axis, self.eccentricity,
                          *angle_components(self.inclination), *angle_components(self.ascending_longitude),
                          *angle_components(self.periapsis_argument), self.mean_motion,
-                         self.target_body.absolute_magnitude, self.target_body.slope_parameter])
+                         self.target_body.hh0, self.target_body.gg0])
 
     def to_geometric_measurement_vector(self) -> np.ndarray:
         return np.array([*angle_components(self.geometric_right_ascension),

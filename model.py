@@ -115,4 +115,4 @@ def measurement_autocovariance_matrix(obs_vec: np.ndarray, dir_var: float, vv_va
 
 def naive_transform(obs: MinorPlanetObservation, eph: MinorPlanetEphemeris) -> np.ndarray:
     return reverse_transform(obs.to_vector(), eph.observer_position, eph.sun_position,
-                             obs.target_body.absolute_magnitude, obs.target_body.slope_parameter)
+                             obs.target_body.hh0, obs.target_body.gg0)
