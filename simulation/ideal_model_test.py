@@ -149,6 +149,7 @@ def main() -> None:
     import matplotlib.pyplot as plt
     plt.scatter(times, [norm(n - truth) for n, truth in zip(naive, tgt_pos)], marker='+', c='r')
     plt.scatter(times, [norm(est - truth) for est, truth in zip(estimates, tgt_pos)], marker='+', c='k')
+    # plt.ylim(-0.001, 0.05)
     plt.show()
 
 
