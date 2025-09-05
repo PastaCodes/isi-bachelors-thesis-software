@@ -29,8 +29,12 @@ def direction_to_ra_dec(dir_vec: np.ndarray) -> tuple[float, float]:
 def direction_to_ra_dec_components(dir_vec: np.ndarray) -> tuple[float, float, float, float]:
     sin_dec = dir_vec[2]
     cos_dec = np.sqrt(1.0 - sin_dec * sin_dec)
-    cos_ra = np.pow(1 + (dir_vec[1] / dir_vec[0]) * (dir_vec[1] / dir_vec[0]), -0.5)
-    sin_ra = np.pow(1 + (dir_vec[0] / dir_vec[1]) * (dir_vec[0] / dir_vec[1]), -0.5)
+    if cos_dec == 0.0:
+        cos_ra = 1.0
+        sin_ra = 0.0
+    else:
+        cos_ra = dir_vec[0] / cos_dec
+        sin_ra = dir_vec[1] / cos_dec
     # noinspection PyTypeChecker
     return cos_ra, sin_ra, cos_dec, sin_dec
 
