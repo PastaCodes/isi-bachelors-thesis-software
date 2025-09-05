@@ -17,7 +17,7 @@ def extract_xyz(array: list | np.ndarray) -> tuple[np.ndarray, np.ndarray, np.nd
 def cherry_picked() -> None:
     obss = list(parse_observations(BODY_BENNU))
     ephs = list(parse_ephemeris(BODY_BENNU))
-    ests = list(kf_estimate(obss[:122],
+    ests = list(kf_estimate(obss[:130],
                             a0=1.128,
                             e0=0.204,
                             i0=0.514,
@@ -33,18 +33,18 @@ def cherry_picked() -> None:
                             dir_var=1.1E-4,
                             vv_var=2.7E-1,
                             dt_exp=1.22))
-    obss_pos = [eph.observer_position for eph in ephs[80:122]]
-    ephs_pos = [eph.target_position for eph in ephs[80:122]]
-    naive_pos = [naive_transform(obs, eph) for obs, eph in zip(obss[80:122], ephs[80:122])]
-    ests_pos = [est.position for est in ests[80:]]
+    obss_pos = [eph.observer_position for eph in ephs[:130]]
+    ephs_pos = [eph.target_position for eph in ephs[:130]]
+    naive_pos = [naive_transform(obs, eph) for obs, eph in zip(obss[:130], ephs[:130])]
+    ests_pos = [est.position for est in ests]
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    ax.set_xlim(0.954, 1.054)
-    ax.set_ylim(-0.085, 0.015)
-    ax.set_zlim(-0.074, 0.026)
+    ax.set_xlim(0.878, 1.128)
+    ax.set_ylim(-0.2, 0.05)
+    ax.set_zlim(-0.173, 0.077)
     ax.scatter(*extract_xyz(obss_pos), marker='D', c='k', depthshade=False, label='Osservatore')
     ax.scatter(*extract_xyz(ephs_pos), marker='o', c='g', depthshade=False, label='Posizione reale')
     ax.scatter(*extract_xyz(naive_pos), marker='+', c='r', depthshade=False, label='Approccio naïve')
