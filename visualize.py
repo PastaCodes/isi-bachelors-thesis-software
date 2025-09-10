@@ -99,4 +99,4 @@ def plot_3d_bennu() -> None:
 
 
 def plot_errors_bennu() -> None:
-    plot_errors(BODY_BENNU, to=130)
+    plot_errors(BODY_BENNU, to=130, use_time=False)
