@@ -53,9 +53,9 @@ SUN_TP = 2.452714888563351E+06              # Sun orbit time of periapsis JD TDB
 
 # Variance of the observation direction (technically the inverse of the concentration parameter of the Fisher
 # distribution)
-DIR_VAR = 1E-7
+DIR_VAR = 1E-6
 # Variance of the visual magnitude
-MAG_VAR = 1E-2
+MAG_VAR = 1E-1
 
 
 def real_position(t: float, a: float, e: float, i: float, om: float, w: float, n: float, tp: float) -> np.ndarray:

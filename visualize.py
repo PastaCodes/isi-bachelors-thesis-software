@@ -19,7 +19,7 @@ def plot_errors_base(eph_pos: list[np.ndarray] | np.ndarray, naive_pos: list[np.
     plt.ylabel('Errore sulla posizione')
     plt.axhline(c='k', lw=0.5)
     plt.scatter(tt, [norm(n - truth) for n, truth in zip(naive_pos, eph_pos)], marker='+', c='r',
-                label='Approccio naïve')
+                label='Approccio diretto')
     plt.scatter(tt, [norm(est - truth) for est, truth in zip(est_pos, eph_pos)], marker='s', c='b',
                 label='Stima UKF')
     if y_lim:
@@ -74,7 +74,7 @@ def plot_3d_base(obs_pos: list[np.ndarray] | np.ndarray, eph_pos: list[np.ndarra
     ax.set_zlim((min_z + max_z - size) / 2, (min_z + max_z + size) / 2)
     ax.scatter(obs_xx, obs_yy, obs_zz, marker='D', c='k', depthshade=False, label='Osservatore')
     ax.scatter(eph_xx, eph_yy, eph_zz, marker='o', c='g', depthshade=False, label='Posizione reale')
-    ax.scatter(naive_xx, naive_yy, naive_zz, marker='+', c='r', depthshade=False, label='Approccio naïve')
+    ax.scatter(naive_xx, naive_yy, naive_zz, marker='+', c='r', depthshade=False, label='Approccio diretto')
     ax.scatter(est_xx, est_yy, est_zz, marker='s', c='b', depthshade=False, label='Stima UKF')
     ax.legend()
     plt.show()
