@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 
 from classes import MinorPlanet
 from filter import kf_estimate
-from main import BODY_BENNU
+from main import BODY_BENNU, BODY_1950_DA
 from misc import norm
 from model import naive_transform
 from parse import parse_observations, parse_ephemeris
@@ -28,17 +28,20 @@ def plot_errors_base(eph_pos: list[np.ndarray] | np.ndarray, naive_pos: list[np.
     plt.show()
 
 
-def plot_errors(body: MinorPlanet, compute_from: int = 0, display_from: int = 0, to: int = -1,
+def plot_errors(body: MinorPlanet, compute_from: int = 0, display_from: int = None, to: int = None,
                 use_time: bool = True, y_lim: float | None = None) -> None:
-    assert display_from >= compute_from
+    if display_from is None:
+        display_from = compute_from
+    else:
+        assert display_from >= compute_from
     obss = list(parse_observations(body))
     ephs = list(parse_ephemeris(body))
-    if to == -1:
+    if to is None:
         to = len(ephs)
     ests = list(kf_estimate(obss[compute_from:to]))
     eph_pos = [eph.target_position for eph in ephs[display_from:to]]
     naive_pos = [naive_transform(obs, eph) for obs, eph in zip(obss[display_from:to], ephs[display_from:to])]
-    est_pos = [est.position for est in ests[display_from:]]
+    est_pos = [est.position for est in ests[display_from - compute_from:]]
     tt = [eph.epoch.to_value('jd') for eph in ephs[display_from:to]] if use_time else range(display_from, to)
     plot_errors_base(eph_pos, naive_pos, est_pos, tt, use_time, y_lim)
 
@@ -80,17 +83,20 @@ def plot_3d_base(obs_pos: list[np.ndarray] | np.ndarray, eph_pos: list[np.ndarra
     plt.show()
 
 
-def plot_3d(body: MinorPlanet, compute_from: int = 0, display_from: int = 0, to: int = -1) -> None:
-    assert display_from >= compute_from
+def plot_3d(body: MinorPlanet, compute_from: int = 0, display_from: int = None, to: int = None) -> None:
+    if display_from is None:
+        display_from = compute_from
+    else:
+        assert display_from >= compute_from
     obss = list(parse_observations(body))
     ephs = list(parse_ephemeris(body))
-    if to == -1:
+    if to is None:
         to = len(ephs)
     ests = list(kf_estimate(obss[compute_from:to]))
     obs_pos = [eph.observer_position for eph in ephs[display_from:to]]
     eph_pos = [eph.target_position for eph in ephs[display_from:to]]
     naive_pos = [naive_transform(obs, eph) for obs, eph in zip(obss[display_from:to], ephs[display_from:to])]
-    est_pos = [est.position for est in ests[display_from:]]
+    est_pos = [est.position for est in ests[display_from - compute_from:]]
     plot_3d_base(obs_pos, eph_pos, naive_pos, est_pos)
 
 
@@ -100,3 +106,19 @@ def plot_3d_bennu() -> None:
 
 def plot_errors_bennu() -> None:
     plot_errors(BODY_BENNU, to=130, use_time=False)
+
+
+def plot_3d_1950da() -> None:
+    plot_3d(BODY_1950_DA, to=69)
+
+
+def plot_errors_1950da() -> None:
+    plot_errors(BODY_1950_DA, to=69, use_time=False)
+
+
+def plot_3d_1950da_2() -> None:
+    plot_3d(BODY_1950_DA, compute_from=200, to=250)
+
+
+def plot_errors_1950da_2() -> None:
+    plot_errors(BODY_1950_DA, compute_from=200, to=250, use_time=False)

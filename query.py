@@ -171,7 +171,7 @@ def query_sun_position(times: list[Time]) -> Iterable[tuple[str, str, str]]:
 
 def query_ephemeris(target_body: MinorPlanet, max_batch_size: int = 30):
     command = f'%27DES%3D{urllib.parse.quote(target_body.jpl_designation)}%3B%27'
-    all_observations = parse_observations(target_body)
+    all_observations = list(parse_observations(target_body))
     by_observatory = itertools.groupby(all_observations, lambda obs: obs.observatory)
     ephs: dict[float, tuple] = dict()
     for observatory, group in by_observatory:

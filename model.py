@@ -116,3 +116,18 @@ def measurement_autocovariance_matrix(obs_vec: np.ndarray, dir_var: float, vv_va
 def naive_transform(obs: MinorPlanetObservation, eph: MinorPlanetEphemeris) -> np.ndarray:
     return reverse_transform(obs.to_vector(), eph.observer_position, eph.sun_position,
                              obs.target_body.hh0, obs.target_body.gg0)
+
+
+# I was planning on comparing with EKF and got this far,
+# but calculating the measurement jacobian looks like a nightmare
+def process_jacobian(before_vec: np.ndarray, dt: float, after_vec: np.ndarray = None) -> np.ndarray:
+    if after_vec is None:
+        after_vec = propagate(before_vec, dt)
+    cos_mm_before, sin_mm_before, *_ = before_vec
+    cos_mm_after, sin_mm_after, *_ = after_vec
+    aa = np.eye(13)
+    aa[0:2, 0:2] = np.array([[sin_mm_after * sin_mm_before, -sin_mm_after * cos_mm_before],
+                             [-cos_mm_after * sin_mm_before, cos_mm_after * cos_mm_before]])
+    aa[0, 10] = -dt * sin_mm_after
+    aa[1, 10] = dt * cos_mm_after
+    return aa

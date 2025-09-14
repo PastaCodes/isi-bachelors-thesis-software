@@ -54,7 +54,8 @@ def time_dependence_estimation(body: MinorPlanet) -> float:
         cov = err @ err.T
         traces.append(np.trace(cov))
 
-    (a, b), _ = sp.optimize.curve_fit(lambda _x, _a, _b: _a * _x ** _b, dts, traces)
+    # (a, b), _ = sp.optimize.curve_fit(lambda _x, _a, _b: _a * _x ** _b, dts, traces)
+    a, b = 1E-11, 5
     xx = np.linspace(0, dts[-1], 50)
     yy = a * xx ** b
 
@@ -143,3 +144,14 @@ def measurement_covariance_estimation(body: MinorPlanet) -> tuple[float, float]:
     vv_var = np.mean(vv_vars[1:])
     # noinspection PyTypeChecker
     return dir_var, vv_var
+
+# ----- Full analysis -----
+# dir_var, vv_var = measurement_covariance_estimation(body)
+# print(f'{dir_var=:.1E}, {vv_var=:.1E}')
+# dt_exp = time_dependence_estimation(body)
+# print(f'{dt_exp=:.2f}')
+# mm_var, a_var, e_var, i_var, om_var, w_var, n_var = process_covariance_estimation(body, dt_exp)
+# print(f'{mm_var=:.1E}, {a_var=:.1E}, {e_var=:.1E}, {i_var=:.1E}, {om_var=:.1E}, {w_var=:.1E}, {n_var=:.1E}')
+# eph0 = parse_ephemeris(body).__iter__().__next__()
+# mm0, om0 = eph0.mean_anomaly, eph0.ascending_longitude
+# print(f'{mm0=:.2f}, {om0=:.2f}')

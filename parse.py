@@ -49,6 +49,8 @@ def parse_observations(body: MinorPlanet,
     with open(PROJECT_ROOT + body.observations_filepath, 'rt', encoding='utf-8') as file:
         prev_time = None
         for line in file.readlines():
+            if not line[65:71].strip():  # No magnitude
+                continue
             if accept_methods is not None:
                 if line[14] not in accept_methods:
                     continue
@@ -57,8 +59,6 @@ def parse_observations(body: MinorPlanet,
                     continue
             obs = parse_observation_line(body, line)
             if obs.epoch == prev_time:
-                continue
-            if not line[65:71].strip():
                 continue
             yield obs
             prev_time = obs.epoch
