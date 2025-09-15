@@ -2,7 +2,9 @@ import numpy as np
 import scipy as sp
 
 from classes import MinorPlanet
-from model import propagate, finalize_transform
+from filter import kf_estimate
+from misc import norm
+from model import propagate, finalize_transform, naive_transform
 from parse import parse_ephemeris, parse_observations
 
 
@@ -54,8 +56,7 @@ def time_dependence_estimation(body: MinorPlanet) -> float:
         cov = err @ err.T
         traces.append(np.trace(cov))
 
-    # (a, b), _ = sp.optimize.curve_fit(lambda _x, _a, _b: _a * _x ** _b, dts, traces)
-    a, b = 1E-11, 5
+    (a, b), _ = sp.optimize.curve_fit(lambda _x, _a, _b: _a * _x ** _b, dts, traces)
     xx = np.linspace(0, dts[-1], 50)
     yy = a * xx ** b
 
@@ -145,13 +146,30 @@ def measurement_covariance_estimation(body: MinorPlanet) -> tuple[float, float]:
     # noinspection PyTypeChecker
     return dir_var, vv_var
 
-# ----- Full analysis -----
-# dir_var, vv_var = measurement_covariance_estimation(body)
-# print(f'{dir_var=:.1E}, {vv_var=:.1E}')
-# dt_exp = time_dependence_estimation(body)
-# print(f'{dt_exp=:.2f}')
-# mm_var, a_var, e_var, i_var, om_var, w_var, n_var = process_covariance_estimation(body, dt_exp)
-# print(f'{mm_var=:.1E}, {a_var=:.1E}, {e_var=:.1E}, {i_var=:.1E}, {om_var=:.1E}, {w_var=:.1E}, {n_var=:.1E}')
-# eph0 = parse_ephemeris(body).__iter__().__next__()
-# mm0, om0 = eph0.mean_anomaly, eph0.ascending_longitude
-# print(f'{mm0=:.2f}, {om0=:.2f}')
+
+def five_number_summary_base(data: list[float] | np.ndarray) -> tuple[float, float, float, float, float]:
+    if not isinstance(data, np.ndarray):
+        data = np.array(data)
+    q0, q1, q2, q3, q4 = np.percentile(data, [0, 25, 50, 75, 100], method="midpoint")
+    return q0, q1, q2, q3, q4
+
+
+def five_number_summary(body: MinorPlanet, compute_from: int = 0, display_from: int = None, to: int = None) -> \
+        tuple[tuple[float, float, float, float, float], tuple[float, float, float, float, float]]:
+    if display_from is None:
+        display_from = compute_from
+    else:
+        assert display_from >= compute_from
+    obss = list(parse_observations(body))
+    ephs = list(parse_ephemeris(body))
+    if to is None:
+        to = len(ephs)
+    ests = list(kf_estimate(obss[compute_from:to]))
+    eph_pos = [eph.target_position for eph in ephs[display_from:to]]
+    naive_pos = [naive_transform(obs, eph) for obs, eph in zip(obss[display_from:to], ephs[display_from:to])]
+    est_pos = [est.position for est in ests[display_from - compute_from:]]
+    naive_err = [norm(n - truth) for n, truth in zip(naive_pos, eph_pos)]
+    est_err = [norm(est - truth) for est, truth in zip(est_pos, eph_pos)]
+    naive_summary = five_number_summary_base(naive_err)
+    est_sumamry = five_number_summary_base(est_err)
+    return naive_summary, est_sumamry

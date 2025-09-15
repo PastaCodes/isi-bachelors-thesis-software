@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 
 from classes import MinorPlanet
 from filter import kf_estimate
-from main import BODY_BENNU, BODY_1950_DA
+from bodies import BODY_BENNU, BODY_1950_DA, BODY_MJOLNIR, BODY_CASTALIA
 from misc import norm
 from model import naive_transform
 from parse import parse_observations, parse_ephemeris
@@ -15,6 +15,7 @@ def plot_errors_base(eph_pos: list[np.ndarray] | np.ndarray, naive_pos: list[np.
     if use_time:
         plt.xlabel('t')
     else:
+        # plt.xticks(range(tt[0], tt[-1] + 1))
         plt.xlabel('passo')
     plt.ylabel('Errore sulla posizione')
     plt.axhline(c='k', lw=0.5)
@@ -108,6 +109,14 @@ def plot_errors_bennu() -> None:
     plot_errors(BODY_BENNU, to=130, use_time=False)
 
 
+def plot_3d_mjolnir() -> None:
+    plot_3d(BODY_MJOLNIR, to=58)
+
+
+def plot_errors_mjolnir() -> None:
+    plot_errors(BODY_MJOLNIR, to=58, use_time=False)
+
+
 def plot_3d_1950da() -> None:
     plot_3d(BODY_1950_DA, to=69)
 
@@ -122,3 +131,11 @@ def plot_3d_1950da_2() -> None:
 
 def plot_errors_1950da_2() -> None:
     plot_errors(BODY_1950_DA, compute_from=200, to=250, use_time=False)
+
+
+def plot_3d_castalia() -> None:
+    plot_3d(BODY_CASTALIA, to=50)
+
+
+def plot_errors_castalia() -> None:
+    plot_errors(BODY_CASTALIA, to=50, use_time=False)
