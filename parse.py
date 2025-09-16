@@ -32,13 +32,13 @@ observation_reader = FortranRecordReader(OBSERVATION_FORMAT)
 
 
 def parse_observation_line(body: MinorPlanet, line: str) -> MinorPlanetObservation:
-    packed_num, packed_desig, discov_ast, note1, note2, year, month, day_dec, ra_hour, ra_minute, ra_second, \
-        decl_degree, decl_minute, decl_second, mag, band, observatory_code = observation_reader.read(line)
+    _packed_num, _packed_desig, _discov_ast, _note1, _note2, year, month, day_decimal, ra_hour, ra_minute, ra_second, \
+        dec_degree, dec_minute, dec_second, mag, band, observatory_code = observation_reader.read(line)
     observatory = observatories[observatory_code]
-    epoch = decimal_day_date_to_time(year, month, day_dec, observatory.location)
+    epoch = decimal_day_date_to_time(year, month, day_decimal, observatory.location)
     return MinorPlanetObservation.with_band(target_body=body, epoch=epoch, observatory=observatory,
                                             ra=np.radians(15 * ra_hour + ra_minute / 4 + ra_second / 240),
-                                            dec=np.radians(decl_degree + decl_minute / 60 + decl_second / 3600),
+                                            dec=np.radians(dec_degree + dec_minute / 60 + dec_second / 3600),
                                             observed_magnitude=mag, band=band)
 
 

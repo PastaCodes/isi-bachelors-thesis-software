@@ -169,6 +169,7 @@ def query_sun_position(times: list[Time]) -> Iterable[tuple[str, str, str]]:
         yield x, y, z
 
 
+# Warning: can take a very long time and requires a stable connection
 def query_ephemeris(target_body: MinorPlanet, max_batch_size: int = 30):
     command = f'%27DES%3D{urllib.parse.quote(target_body.jpl_designation)}%3B%27'
     all_observations = list(parse_observations(target_body))

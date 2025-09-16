@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sp
+from scipy.spatial.transform import Rotation
 
 from misc import safe_arccos, cot, closest_angle, arctan2pos, angle_components_sum, wrap_angle
 
@@ -55,6 +56,10 @@ def orbital_angles_from_position(pos: np.ndarray, v: float, i: float,
     u = arctan2pos(z, np.sin(i) * (np.cos(om) * x + np.sin(om) * y))
     w = u - v
     return om, w
+
+
+def position_from_orbital_angles(om: float, u: float, i: float, r: float) -> np.ndarray:
+    return Rotation.from_euler('zxz', [u, i, om]).apply(np.array([r, 0.0, 0.0]))
 
 
 def position_from_orbital_angle_components(cos_om: float, sin_om: float, cos_w: float, sin_w: float,

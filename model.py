@@ -2,9 +2,9 @@ import numpy as np
 
 from classes import MinorPlanetObservation, MinorPlanetEphemeris
 from misc import angle_components, norm, angle_from_components
-from orbit import (orbital_angles_from_position, true_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_distance,
-                   mean_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_mean_anomaly,
-                   distance_from_eccentric_anomaly, position_from_orbital_angle_components, advance_mean_anomaly)
+from orbit import orbital_angles_from_position, true_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_distance, \
+    mean_anomaly_from_eccentric_anomaly, eccentric_anomaly_from_mean_anomaly, distance_from_eccentric_anomaly, \
+    position_from_orbital_angle_components, advance_mean_anomaly
 from photometry import solve_distance_and_phase, visual_magnitude_from_absolute
 from sky import phase_from_distances, direction_to_ra_dec_components, ra_dec_components_to_direction, \
     elongation_from_directions
@@ -16,13 +16,13 @@ def reverse_transform(obs_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndar
     [*α, *δ, V] --> [x, y, z]
     """
     cos_ra, sin_ra, cos_dec, sin_dec, vv = obs_vec
-    tgt_obs_unit_vec = ra_dec_components_to_direction(cos_ra, sin_ra, cos_dec, sin_dec)
+    tgt_obs_ray = ra_dec_components_to_direction(cos_ra, sin_ra, cos_dec, sin_dec)
     sun_obs_pos = sun_pos - obs_pos
     sun_obs_dist = norm(sun_obs_pos)
-    sun_obs_unit_vec = sun_obs_pos / sun_obs_dist
-    th = elongation_from_directions(tgt_obs_unit_vec, sun_obs_unit_vec)
+    sun_obs_ray = sun_obs_pos / sun_obs_dist
+    th = elongation_from_directions(tgt_obs_ray, sun_obs_ray)
     tgt_obs_dist, _ = solve_distance_and_phase(vv, sun_obs_dist, th, hh, gg)
-    tgt_obs_pos = tgt_obs_dist * tgt_obs_unit_vec
+    tgt_obs_pos = tgt_obs_dist * tgt_obs_ray
     tgt_pos = tgt_obs_pos + obs_pos
     return tgt_pos
 
@@ -65,9 +65,10 @@ def measure(state_vec: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray) -> 
     gg: float = np.maximum(state_vec[12], -0.25)
     tgt_obs_pos = tgt_pos - obs_pos
     tgt_obs_dist = norm(tgt_obs_pos)
+    tgt_obs_ray = tgt_obs_pos / tgt_obs_dist
+    cos_ra, sin_ra, cos_dec, sin_dec = direction_to_ra_dec_components(tgt_obs_ray)
     tgt_sun_dist = norm(tgt_pos - sun_pos)
     obs_sun_dist = norm(obs_pos - sun_pos)
-    cos_ra, sin_ra, cos_dec, sin_dec = direction_to_ra_dec_components(tgt_obs_pos / tgt_obs_dist)
     phi = phase_from_distances(tgt_sun_dist, tgt_obs_dist, obs_sun_dist)
     vv = visual_magnitude_from_absolute(hh, tgt_sun_dist, tgt_obs_dist, phi, gg)
     return np.array([cos_ra, sin_ra, cos_dec, sin_dec, vv])
@@ -96,11 +97,11 @@ def state_autocovariance_matrix(state_vec: np.ndarray, mm_var: float, a_var: flo
     cos_mm, sin_mm, _, _, cos_i, sin_i, cos_om, sin_om, cos_w, sin_w, _, _, _ = state_vec
     qq = np.zeros((13, 13))
     qq[0:2, 0:2] = angle_components_autocovariance_matrix(cos_mm, sin_mm, mm_var)
-    qq[2:4, 2:4] = np.diag([a_var, e_var])
+    qq[2, 2], qq[3, 3] = a_var, e_var
     qq[4:6, 4:6] = angle_components_autocovariance_matrix(cos_i, sin_i, i_var)
     qq[6:8, 6:8] = angle_components_autocovariance_matrix(cos_om, sin_om, om_var)
     qq[8:10, 8:10] = angle_components_autocovariance_matrix(cos_w, sin_w, w_var)
-    qq[10:13, 10:13] = np.diag([n_var, hh_var, gg_var])
+    qq[10, 10], qq[11, 11], qq[12, 12] = n_var, hh_var, gg_var
     return qq
 
 

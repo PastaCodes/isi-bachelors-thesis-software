@@ -1,14 +1,14 @@
 import numpy as np
 import scipy as sp
 from filterpy.kalman import MerweScaledSigmaPoints, UnscentedKalmanFilter
-from scipy.spatial.transform import Rotation
 
-from misc import wrap_angle, arctan2pos, safe_arcsin, law_of_cosines, angle_components, norm
+from misc import wrap_angle, angle_components, norm
 from model import reverse_transform, measure, propagate, initial_state, finalize_transform, \
     state_autocovariance_matrix, measurement_autocovariance_matrix
-from orbit import (eccentric_anomaly_from_mean_anomaly, true_anomaly_from_eccentric_anomaly,
-                   distance_from_eccentric_anomaly)
+from orbit import eccentric_anomaly_from_mean_anomaly, true_anomaly_from_eccentric_anomaly, \
+    distance_from_eccentric_anomaly, position_from_orbital_angles
 from photometry import visual_magnitude_from_absolute
+from sky import direction_to_ra_dec, phase_from_distances
 
 """
 Ideal model
@@ -63,7 +63,7 @@ def real_position(t: float, a: float, e: float, i: float, om: float, w: float, n
     ee = eccentric_anomaly_from_mean_anomaly(mm, e)
     v = true_anomaly_from_eccentric_anomaly(ee, e)
     r = distance_from_eccentric_anomaly(ee, a, e)
-    return Rotation.from_euler('zxz', [v + w, i, om]).apply(np.array([r, 0.0, 0.0]))
+    return position_from_orbital_angles(om, w + v, i, r)
 
 
 def gen_times(n: int, min_dist: float, max_dist: float, start: float, rng: np.random.Generator) -> list[float]:
@@ -85,13 +85,12 @@ def observe(tgt_pos: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray, hh: f
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.vonmises_fisher.html
     # noinspection PyTypeChecker
     tgt_obs_ray = sp.stats.vonmises_fisher(mu=tgt_obs_ray, kappa=(1.0 / dir_var), seed=rng).rvs(1)[0]
-    ra = arctan2pos(tgt_obs_ray[1], tgt_obs_ray[0])
-    dec = safe_arcsin(tgt_obs_ray[2])
+    ra, dec = direction_to_ra_dec(tgt_obs_ray)
 
     tgt_sun_dist = norm(tgt_pos - sun_pos)
     obs_sun_dist = norm(obs_pos - sun_pos)
 
-    phi = law_of_cosines(tgt_obs_dist, tgt_sun_dist, obs_sun_dist)
+    phi = phase_from_distances(tgt_sun_dist, tgt_obs_dist, obs_sun_dist)
     vv = visual_magnitude_from_absolute(hh, tgt_sun_dist, tgt_obs_dist, phi, gg)
     vv = rng.normal(loc=vv, scale=np.sqrt(vv_var))  # Apply Gaussian noise to the visual magnitude
     return np.array([ra, dec, vv])
