@@ -18,9 +18,11 @@ observatories: dict[str, Observatory] = {}
 def load_observatories():
     with open(PROJECT_ROOT + observatories_file_path, 'rt', encoding='utf-8') as file:
         for line in file.readlines()[1:]:
-            if not line[6]:  # No location data; likely not on Earth
+            if not line[6].isnumeric():  # No location data; likely not on Earth
                 continue
             code, lon_deg, p1, p2, name = observatory_reader.read(line)
+            if p1 == 0.0 and p2 == 0.0:  # Invalid location data; likely not on Earth
+                continue
             loc = location_from_parallax(float(lon_deg), float(p1), float(p2))
             observatories[code] = Observatory(code, name, loc)
 
