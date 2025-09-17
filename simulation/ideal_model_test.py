@@ -76,7 +76,7 @@ def gen_times(n: int, min_dist: float, max_dist: float, start: float, rng: np.ra
 
 
 def observe(tgt_pos: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray, hh: float, gg: float,
-            dir_var: float, vv_var: float, rng: np.random.Generator) -> np.ndarray:
+            dir_var: float, vv_var: float, rng: np.random.Generator) -> tuple[float, float, float]:
     tgt_obs_pos = tgt_pos - obs_pos
     tgt_obs_dist = norm(tgt_obs_pos)
 
@@ -93,10 +93,10 @@ def observe(tgt_pos: np.ndarray, obs_pos: np.ndarray, sun_pos: np.ndarray, hh: f
     phi = phase_from_distances(tgt_sun_dist, tgt_obs_dist, obs_sun_dist)
     vv = visual_magnitude_from_absolute(hh, tgt_sun_dist, tgt_obs_dist, phi, gg)
     vv = rng.normal(loc=vv, scale=np.sqrt(vv_var))  # Apply Gaussian noise to the visual magnitude
-    return np.array([ra, dec, vv])
+    return ra, dec, vv
 
 
-def prepare(obs: np.ndarray) -> np.ndarray:
+def prepare(obs: tuple[float, float, float]) -> np.ndarray:
     ra, dec, vv = obs
     return np.array([*angle_components(ra), *angle_components(dec), vv])
 
